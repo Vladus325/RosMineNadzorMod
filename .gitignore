@@ -1,0 +1,16 @@
+# Gradle
+.gradle/
+build/
+
+# IDE / language server
+bin/
+.vscode/
+*.iml
+.idea/
+
+# Runtime (runClient / runServer / junit)
+run/
+
+# OS
+Thumbs.db
+.DS_Store
