@@ -90,5 +90,10 @@
   "rosminenadzor.cmd.reloaded": "РМН: custom_bans.json перечитан",
   "item.rosminenadzor.rmn_seal": "Печать РосМайнНадзора",
   "rosminenadzor.item.rmn_seal.hint": "ПКМ — запустить или остановить надзор",
-  "rosminenadzor.chat.rmn_stopped": "РосМайнНадзор приостановил работу. Запреты сняты."
+  "rosminenadzor.chat.rmn_stopped": "РосМайнНадзор приостановил работу. Запреты сняты.",
+  "rosminenadzor.cmd.now_started": "РМН: внеочередной запрет введён",
+  "rosminenadzor.cmd.now_empty": "РМН: внеочередной запрет невозможен — каталог исчерпан или достигнут потолок",
+  "rosminenadzor.cmd.interval_days": "РМН: запреты теперь каждые игровые сутки",
+  "rosminenadzor.cmd.interval_seconds": "РМН: новый запрет каждые %s с",
+  "rosminenadzor.cmd.interval_bad": "РМН: «%s» — укажите 0/day (игровые сутки) или секунды от 1 до 86400"
 }

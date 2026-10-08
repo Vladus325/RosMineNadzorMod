@@ -46,10 +46,17 @@ public final class RmnOverwatch {
     private static boolean active;
     private static int dayCount;
     private static long lastCycleMs;
+    /** dayTime на прошлом тике (для детекции wrap'а суток). */
     private static long lastDayTime = -1;
+    /** gameTime на прошлом цикле: 24000 монотонных тиков = игровой день.
+     *  Спасает, когда календари модов (TFC) берут dayTime на себя и ванильный
+     *  цикл суток фактически не идёт. */
+    private static long lastCycleGameTime = -1;
     /** Минимальная пауза между циклами в дневном режиме — календари модов (TFC)
      *  дёргают dayTime при загрузке мира пачкой переходов. */
     private static final long MIN_CYCLE_GAP_MS = 2000;
+    /** Длина игровых суток в тиках. */
+    private static final long DAY_TICKS = 24000;
     private static final List<RmnBan> BANS = new ArrayList<>();
     /** Нарушения по игрокам — счётчик единый на все запреты. */
     private static final Map<UUID, Integer> VIOLATIONS = new HashMap<>();
@@ -119,7 +126,9 @@ public final class RmnOverwatch {
         RmnConfig.load();
         RmnBan.setCustom(RmnCustomBans.load()); // конструктор запретов: свежий каталог при каждом запуске
         lastCycleMs = System.currentTimeMillis();
-        lastDayTime = server.overworld() != null ? server.overworld().getDayTime() : -1;
+        ServerLevel overworld = server.overworld();
+        lastDayTime = overworld != null ? overworld.getDayTime() : -1;
+        lastCycleGameTime = overworld != null ? overworld.getGameTime() : -1;
         dayCount = 0;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.displayClientMessage(Component.translatable("rosminenadzor.chat.rmn_started")
@@ -141,17 +150,24 @@ public final class RmnOverwatch {
                 onCycle(server);
             }
         } else {
-            // режим игровых суток: рассвет — wrap dayTime вниз или прыжок вперёд >12000
-            // (в 1.21.1 dayTime хранится по модулю 24000)
+            // режим игровых суток: детекция ДВУМЯ способами —
+            // (1) wrap dayTime (в 1.21.1 он по модулю 24000): рассвет или time set;
+            // (2) 24000 монотонных тиков gameTime: работает, когда календарь модов
+            //     (TFC) ведёт dayTime сам и ванильная смена суток не наступает
             ServerLevel overworld = server.overworld();
             if (overworld != null) {
                 long dayTime = overworld.getDayTime();
-                if (lastDayTime >= 0 && (dayTime < lastDayTime || dayTime - lastDayTime > 12000)
-                        && now - lastCycleMs >= MIN_CYCLE_GAP_MS) {
+                long gameTime = overworld.getGameTime();
+                boolean dayWrapped = lastDayTime >= 0
+                        && (dayTime < lastDayTime || dayTime - lastDayTime > 12000);
+                boolean ticksElapsed = lastCycleGameTime >= 0
+                        && gameTime - lastCycleGameTime >= DAY_TICKS;
+                if ((dayWrapped || ticksElapsed) && now - lastCycleMs >= MIN_CYCLE_GAP_MS) {
                     lastCycleMs = now;
                     onCycle(server);
                 }
                 lastDayTime = dayTime;
+                lastCycleGameTime = gameTime;
             }
         }
         enforceSilly(server);
@@ -168,9 +184,10 @@ public final class RmnOverwatch {
      * Новый накопительный запрет: 1-й — блоки, 2-й — странные, дальше — весь
      * каталог (включая кастомные из custom_bans.json, распределённые по своим
      * пулам). Виды, выключенные в config.json, из розыгрыша исключаются.
+     * false — ввести запрет не удалось (потолок/пустой каталог).
      */
-    private static void rollNewBan(MinecraftServer server) {
-        if (RmnConfig.maxActiveBans > 0 && BANS.size() >= RmnConfig.maxActiveBans) return;
+    private static boolean rollNewBan(MinecraftServer server) {
+        if (RmnConfig.maxActiveBans > 0 && BANS.size() >= RmnConfig.maxActiveBans) return false;
         List<RmnBan> pool = new ArrayList<>();
         if (RmnConfig.builtInEnabled) {
             pool.addAll(switch (BANS.size()) {
@@ -193,11 +210,26 @@ public final class RmnOverwatch {
             if (!RmnConfig.builtInEnabled && RmnBan.customs().isEmpty()) {
                 RosMineNadzor.LOGGER.warn("РМН: встроенные запреты выключены, а custom_bans.json пуст — день без нового запрета");
             }
-            return;
+            return false;
         }
         RmnBan ban = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
         BANS.add(ban);
         broadcastBan(server, ban);
+        return true;
+    }
+
+    /** Внеочередной запрет (команда /rmn now); false — некого запретить. */
+    public static boolean rollNewBanNow(MinecraftServer server) {
+        if (!active) return false;
+        return rollNewBan(server);
+    }
+
+    /** Сброс таймера цикла (после /rmn interval): отсчёт заново с текущего момента. */
+    public static void resetCycleTimer(MinecraftServer server) {
+        lastCycleMs = System.currentTimeMillis();
+        ServerLevel overworld = server.overworld();
+        lastDayTime = overworld != null ? overworld.getDayTime() : -1;
+        lastCycleGameTime = overworld != null ? overworld.getGameTime() : -1;
     }
 
     /** Выключен ли вид запрета в config.json. */

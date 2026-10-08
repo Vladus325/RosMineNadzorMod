@@ -15,7 +15,8 @@ Banned letters are erased from the entire game.
 ## Activate / Активация
 
 - Item **Seal of RosMineNadzor** (right-click) / предмет **Печать РосМайнНадзора** (ПКМ)
-- Commands / команды: `/rmn start`, `/rmn stop`, `/rmn ban <id>`, `/rmn reload`
+- Commands / команды: `/rmn start`, `/rmn stop`, `/rmn now` (out-of-turn ban),
+  `/rmn interval <day|seconds>` (change the rhythm in game), `/rmn ban <id>`, `/rmn reload`
 
 ## Configure / Настройка
 
@@ -26,7 +27,7 @@ Banned letters are erased from the entire game.
 ## Build / Сборка
 
 ```bash
-./gradlew build        # jar → build/libs/rosminenadzor-1.0.jar
+./gradlew build        # jar → build/libs/rosminenadzor-1.1.jar
 ```
 
 Requires JDK 21. First build may need network access; afterwards `--offline` works.

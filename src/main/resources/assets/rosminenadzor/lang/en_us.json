@@ -90,5 +90,10 @@
   "rosminenadzor.cmd.reloaded": "RMN: custom_bans.json reloaded",
   "item.rosminenadzor.rmn_seal": "RosMineNadzor Seal",
   "rosminenadzor.item.rmn_seal.hint": "RMB — start or stop the overwatch",
-  "rosminenadzor.chat.rmn_stopped": "RosMineNadzor has suspended its work. All prohibitions are lifted."
+  "rosminenadzor.chat.rmn_stopped": "RosMineNadzor has suspended its work. All prohibitions are lifted.",
+  "rosminenadzor.cmd.now_started": "RMN: an out-of-turn prohibition has been introduced",
+  "rosminenadzor.cmd.now_empty": "RMN: cannot introduce one — the catalog is exhausted or the cap is reached",
+  "rosminenadzor.cmd.interval_days": "RMN: prohibitions now come every Minecraft day",
+  "rosminenadzor.cmd.interval_seconds": "RMN: a new prohibition every %s seconds",
+  "rosminenadzor.cmd.interval_bad": "RMN: \"%s\" — use 0/day (Minecraft days) or seconds from 1 to 86400"
 }

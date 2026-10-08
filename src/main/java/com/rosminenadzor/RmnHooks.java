@@ -22,23 +22,29 @@ public final class RmnHooks {
     private RmnHooks() {
     }
 
-    /** Запрет на ломание: блок не ломается, нарушение фиксируется (и в творческом). */
+    /**
+     * Запрет на ломание: блок ЛОМАЕТСЯ как обычно (дроп обычный), но нарушение
+     * фиксируется и запускает лестницу наказаний — надзор карает, а не делает
+     * игрока неуязвимым для собственных запретов.
+     */
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
         if (!RmnOverwatch.isActive()) return;
         if (!(event.getPlayer() instanceof ServerPlayer player)) return;
         RmnBan ban = RmnOverwatch.stateBan(Kind.BREAK, event.getState());
         if (ban == null) return;
-        event.setCanceled(true);
         RmnOverwatch.onViolation(player, ban);
     }
 
-    /** Запрет на установку: блок не ставится, запрещённое конфискуется при наказании. */
+    /**
+     * Запрет на установку: блок СТАВИТСЯ как обычно, но нарушение фиксируется
+     * и запускает лестницу наказаний (на этапах 1–2 запрещённые блоки из
+     * инвентаря конфискуются). Надзор карает, а не блокирует.
+     */
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
         if (!RmnOverwatch.isActive()) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         RmnBan ban = RmnOverwatch.stateBan(Kind.PLACE, event.getPlacedBlock());
         if (ban == null) return;
-        event.setCanceled(true);
         RmnOverwatch.onViolation(player, ban);
     }
 
