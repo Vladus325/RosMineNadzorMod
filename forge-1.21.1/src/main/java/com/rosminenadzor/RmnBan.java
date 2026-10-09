@@ -9,14 +9,11 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.MaceItem;
-import net.minecraft.world.item.ProjectileWeaponItem;
-import net.minecraft.world.item.SwordItem;
-import net.minecraft.world.item.TridentItem;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -30,10 +27,11 @@ import java.util.function.Predicate;
 
 /**
  * Один запрет «РосМайнНадзора» ({@code /rmn start}): тип, набор блоков
- * (теги + прямые), маскируемые буквы или id «глупого» запрета. Запреты выбираются
- * случайно и накапливаются с каждым майнкрафт-днём — см. {@link RmnOverwatch}.
- * Здесь же — «устранение нарушения» ({@link #autoFix}): телепортация от запретной
- * поверхности или конфискация запрещённых предметов.
+ * (теги + прямые), набор предметов (теги + прямые), маскируемые буквы или
+ * id «глупого» запрета. Запреты выбираются случайно и накапливаются с каждым
+ * майнкрафт-днём — см. {@link RmnOverwatch}. Здесь же — «устранение нарушения»
+ * ({@link #autoFix}): телепортация от запретной поверхности, конфискация
+ * запрещённых предметов или снятие запретной брони.
  */
 public final class RmnBan {
     /** Тип запрета — определяет, какой хук его проверяет. */
@@ -48,29 +46,39 @@ public final class RmnBan {
         LETTER,
         /** Глупый запрет про управление (шифт/спринт/жидкости). */
         SILLY,
-        /** Запрет на PvP-экипировку (зачарованная/незачарованная броня и оружие). */
-        PVP,
+        /** Нельзя использовать предметы из набора (ломать/атаковать) — действие проходит, но карается. */
+        USE,
+        /** Нельзя надевать броню из набора — снятие при обнаружении. */
+        EQUIP,
+        /** Нельзя взаимодействовать с блоками из набора (верстак, печь, сундук...) — открытие проходит, но карается. */
+        USEBLOCK,
         /** Запрет на взаимодействие (лодки, лошади, двери, сон, жемчуг). */
         INTERACT
     }
 
     public final String id;
     public final Kind kind;
-    /** Пул розыгрыша первых дней: MAJOR (блоки), WEIRD (странные), PVP (PvP/взаимодействия). */
+    /** Пул розыгрыша первых дней: MAJOR (блоки), WEIRD (странные), ADVANCED (наборы). */
     public final String pool;
     private final Set<TagKey<Block>> blockTags;
     private final Set<Block> blocks;
+    private final Set<TagKey<Item>> itemTags;
+    private final Set<Item> items;
     private final char[] maskChars;
     /** Свой заголовок из custom_bans.json; null для встроенных — перевод по ключу. */
     private final String titleOverride;
 
-    private RmnBan(String id, Kind kind, String pool, Set<TagKey<Block>> blockTags, Set<Block> blocks,
+    private RmnBan(String id, Kind kind, String pool,
+                   Set<TagKey<Block>> blockTags, Set<Block> blocks,
+                   Set<TagKey<Item>> itemTags, Set<Item> items,
                    char[] maskChars, String titleOverride) {
         this.id = id;
         this.kind = kind;
         this.pool = pool;
         this.blockTags = blockTags;
         this.blocks = blocks;
+        this.itemTags = itemTags;
+        this.items = items;
         this.maskChars = maskChars;
         this.titleOverride = titleOverride;
     }
@@ -134,12 +142,43 @@ public final class RmnBan {
     public static final RmnBan NO_SHIFT_LAVA = silly("no_shift_lava");
     public static final RmnBan NO_SHIFT_WATER = silly("no_shift_water");
 
-    /** PvP: проверяется хуком входящего урона между игроками. */
-    public static final RmnBan NO_UNENCH_ARMOR = simple("no_unench_armor", Kind.PVP);
-    public static final RmnBan NO_ENCH_ARMOR = simple("no_ench_armor", Kind.PVP);
-    public static final RmnBan NO_WEAPON = simple("no_weapon", Kind.PVP);
-    public static final RmnBan NO_UNENCH_WEAPON = simple("no_unench_weapon", Kind.PVP);
-    public static final RmnBan NO_ENCH_WEAPON = simple("no_ench_weapon", Kind.PVP);
+    /** Использование: наборы инструментов по материалам (ломание/атака проходят, но караются). */
+    public static final RmnBan NO_USE_WOODEN_TOOLS = useSet("no_use_wooden_tools", "ADVANCED",
+            Items.WOODEN_PICKAXE, Items.WOODEN_AXE, Items.WOODEN_SHOVEL, Items.WOODEN_HOE, Items.WOODEN_SWORD);
+    public static final RmnBan NO_USE_STONE_TOOLS = useSet("no_use_stone_tools", "ADVANCED",
+            Items.STONE_PICKAXE, Items.STONE_AXE, Items.STONE_SHOVEL, Items.STONE_HOE, Items.STONE_SWORD);
+    public static final RmnBan NO_USE_IRON_TOOLS = useSet("no_use_iron_tools", "ADVANCED",
+            Items.IRON_PICKAXE, Items.IRON_AXE, Items.IRON_SHOVEL, Items.IRON_HOE, Items.IRON_SWORD);
+    public static final RmnBan NO_USE_GOLDEN_TOOLS = useSet("no_use_golden_tools", "ADVANCED",
+            Items.GOLDEN_PICKAXE, Items.GOLDEN_AXE, Items.GOLDEN_SHOVEL, Items.GOLDEN_HOE, Items.GOLDEN_SWORD);
+    public static final RmnBan NO_USE_DIAMOND_TOOLS = useSet("no_use_diamond_tools", "ADVANCED",
+            Items.DIAMOND_PICKAXE, Items.DIAMOND_AXE, Items.DIAMOND_SHOVEL, Items.DIAMOND_HOE, Items.DIAMOND_SWORD);
+    public static final RmnBan NO_USE_NETHERITE_TOOLS = useSet("no_use_netherite_tools", "ADVANCED",
+            Items.NETHERITE_PICKAXE, Items.NETHERITE_AXE, Items.NETHERITE_SHOVEL, Items.NETHERITE_HOE, Items.NETHERITE_SWORD);
+
+    /** Ношение: наборы брони по материалам (надевание карается, броня снимается). */
+    public static final RmnBan NO_EQUIP_LEATHER_ARMOR = equipSet("no_equip_leather_armor", "ADVANCED",
+            Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS);
+    public static final RmnBan NO_EQUIP_CHAINMAIL_ARMOR = equipSet("no_equip_chainmail_armor", "ADVANCED",
+            Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS);
+    public static final RmnBan NO_EQUIP_IRON_ARMOR = equipSet("no_equip_iron_armor", "ADVANCED",
+            Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS);
+    public static final RmnBan NO_EQUIP_GOLDEN_ARMOR = equipSet("no_equip_golden_armor", "ADVANCED",
+            Items.GOLDEN_HELMET, Items.GOLDEN_CHESTPLATE, Items.GOLDEN_LEGGINGS, Items.GOLDEN_BOOTS);
+    public static final RmnBan NO_EQUIP_DIAMOND_ARMOR = equipSet("no_equip_diamond_armor", "ADVANCED",
+            Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS);
+    public static final RmnBan NO_EQUIP_NETHERITE_ARMOR = equipSet("no_equip_netherite_armor", "ADVANCED",
+            Items.NETHERITE_HELMET, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_BOOTS);
+
+    /** Взаимодействие с блоками: верстаки, плавка, хранение (открытие проходит, но карается). */
+    public static final RmnBan NO_USEBLOCK_CRAFTING = direct("no_useblock_crafting", Kind.USEBLOCK, "ADVANCED",
+            Blocks.CRAFTING_TABLE, Blocks.CRAFTER);
+    public static final RmnBan NO_USEBLOCK_SMELTING = direct("no_useblock_smelting", Kind.USEBLOCK, "ADVANCED",
+            Blocks.FURNACE, Blocks.BLAST_FURNACE, Blocks.SMOKER);
+    public static final RmnBan NO_USEBLOCK_STORAGE = both("no_useblock_storage", Kind.USEBLOCK, "ADVANCED",
+            BlockTags.SHULKER_BOXES,
+            Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.BARREL, Blocks.ENDER_CHEST,
+            Blocks.HOPPER, Blocks.DISPENSER, Blocks.DROPPER);
 
     /** Взаимодействия: проверяются клик-хуками. */
     public static final RmnBan NO_BOAT = simple("no_boat", Kind.INTERACT);
@@ -157,10 +196,14 @@ public final class RmnBan {
             NO_LETTER_A, NO_LETTER_O, NO_LETTER_E, NO_LETTER_I, NO_LETTER_N, NO_LETTER_T,
             NO_LETTER_R, NO_LETTER_S, NO_LETTER_K, NO_LETTER_M,
             NO_SHIFT, FORCE_SHIFT, NO_SPRINT, NO_SHIFT_LAVA, NO_SHIFT_WATER,
-            NO_UNENCH_ARMOR, NO_ENCH_ARMOR, NO_WEAPON, NO_UNENCH_WEAPON, NO_ENCH_WEAPON,
+            NO_USE_WOODEN_TOOLS, NO_USE_STONE_TOOLS, NO_USE_IRON_TOOLS,
+            NO_USE_GOLDEN_TOOLS, NO_USE_DIAMOND_TOOLS, NO_USE_NETHERITE_TOOLS,
+            NO_EQUIP_LEATHER_ARMOR, NO_EQUIP_CHAINMAIL_ARMOR, NO_EQUIP_IRON_ARMOR,
+            NO_EQUIP_GOLDEN_ARMOR, NO_EQUIP_DIAMOND_ARMOR, NO_EQUIP_NETHERITE_ARMOR,
+            NO_USEBLOCK_CRAFTING, NO_USEBLOCK_SMELTING, NO_USEBLOCK_STORAGE,
             NO_BOAT, NO_HORSE, NO_DOOR, NO_BED, NO_PEARL);
 
-    /** Пулы тяжести: 1-й запрет дня — блоки, 2-й — странные, 3-й — PvP/взаимодействия. */
+    /** Пулы тяжести: 1-й запрет дня — блоки, 2-й — странные, 3-й — наборы/взаимодействия. */
     public static final List<RmnBan> POOL_MAJOR = List.of(
             NO_JUMP_SAND, NO_JUMP_WOOL, NO_JUMP_GLASS, NO_JUMP_FARM, NO_JUMP_SLIME, NO_JUMP_HONEY, NO_JUMP_MAGMA,
             NO_BREAK_POTTERY, NO_BREAK_WOOD, NO_BREAK_STONE, NO_BREAK_DEEPSLATE,
@@ -170,8 +213,12 @@ public final class RmnBan {
             NO_LETTER_A, NO_LETTER_O, NO_LETTER_E, NO_LETTER_I, NO_LETTER_N, NO_LETTER_T,
             NO_LETTER_R, NO_LETTER_S, NO_LETTER_K, NO_LETTER_M,
             NO_SHIFT, FORCE_SHIFT, NO_SPRINT, NO_SHIFT_LAVA, NO_SHIFT_WATER);
-    public static final List<RmnBan> POOL_PVP = List.of(
-            NO_UNENCH_ARMOR, NO_ENCH_ARMOR, NO_WEAPON, NO_UNENCH_WEAPON, NO_ENCH_WEAPON,
+    public static final List<RmnBan> POOL_ADVANCED = List.of(
+            NO_USE_WOODEN_TOOLS, NO_USE_STONE_TOOLS, NO_USE_IRON_TOOLS,
+            NO_USE_GOLDEN_TOOLS, NO_USE_DIAMOND_TOOLS, NO_USE_NETHERITE_TOOLS,
+            NO_EQUIP_LEATHER_ARMOR, NO_EQUIP_CHAINMAIL_ARMOR, NO_EQUIP_IRON_ARMOR,
+            NO_EQUIP_GOLDEN_ARMOR, NO_EQUIP_DIAMOND_ARMOR, NO_EQUIP_NETHERITE_ARMOR,
+            NO_USEBLOCK_CRAFTING, NO_USEBLOCK_SMELTING, NO_USEBLOCK_STORAGE,
             NO_BOAT, NO_HORSE, NO_DOOR, NO_BED, NO_PEARL);
 
     /** Кастомные запреты из custom_bans.json (загружает RmnCustomBans). */
@@ -210,13 +257,13 @@ public final class RmnBan {
         return blocks.contains(state.getBlock());
     }
 
-    /** Предмет подпадает под запрет (для конфискации): тег предметов с тем же именем или прямой блок. */
-    public boolean matchesStack(ItemStack stack) {
+    /** Предмет подпадает под запрет USE/EQUIP (тег предметов с тем же именем или прямой предмет). */
+    public boolean matchesItem(ItemStack stack) {
         if (stack.isEmpty()) return false;
-        for (TagKey<Block> tag : blockTags) {
-            if (stack.is(TagKey.create(Registries.ITEM, tag.location()))) return true;
+        for (TagKey<Item> tag : itemTags) {
+            if (stack.is(tag)) return true;
         }
-        return stack.getItem() instanceof BlockItem blockItem && blocks.contains(blockItem.getBlock());
+        return items.contains(stack.getItem());
     }
 
     /** Содержит ли текст запрещённую букву (для запрета букв в чате). */
@@ -240,26 +287,22 @@ public final class RmnBan {
     // ---------------------------------------------------------------- устранение нарушения
 
     /**
-     * «Решение нарушения» при наказании: телепортация от запретной поверхности
-     * или конфискация запрещённых предметов. null — устранять нечего.
+     * «Решение нарушения» при наказании: телепортация от запретной поверхности,
+     * конфискация запрещённых предметов или снятие запретной брони.
+     * null — устранять нечего (USE: действие уже прошло, карает сама лестница).
      */
     public Component autoFix(ServerPlayer player) {
         return switch (kind) {
             case JUMP_ON -> teleportAway(player, this::matchesState);
-            case PLACE -> confiscate(player, this::matchesStack);
+            case PLACE -> confiscate(player, stack -> matchesItem(stack)
+                    || stack.getItem() instanceof BlockItem blockItem
+                        && matchesState(blockItem.getBlock().defaultBlockState()));
+            case EQUIP -> stripWorn(player, this::matchesItem);
             case SILLY -> switch (id) {
                 case "no_shift_lava" -> teleportAway(player,
                         state -> state.getFluidState().is(FluidTags.LAVA));
                 case "no_shift_water" -> teleportAway(player,
                         state -> state.getFluidState().is(FluidTags.WATER));
-                default -> null;
-            };
-            case PVP -> switch (id) {
-                case "no_weapon" -> confiscate(player, RmnBan::isWeapon);
-                case "no_unench_weapon" -> confiscate(player, s -> isWeapon(s) && !s.isEnchanted());
-                case "no_ench_weapon" -> confiscate(player, s -> isWeapon(s) && s.isEnchanted());
-                case "no_unench_armor" -> confiscate(player, s -> isArmor(s) && !s.isEnchanted());
-                case "no_ench_armor" -> confiscate(player, s -> isArmor(s) && s.isEnchanted());
                 default -> null;
             };
             default -> null;
@@ -304,18 +347,21 @@ public final class RmnBan {
                 : null;
     }
 
-    // ---------------------------------------------------------------- экипировка
-
-    /** Оружие: меч, топор, трезубец, булава, лук или арбалет в руке. */
-    public static boolean isWeapon(ItemStack stack) {
-        return stack.getItem() instanceof SwordItem || stack.getItem() instanceof AxeItem
-                || stack.getItem() instanceof TridentItem || stack.getItem() instanceof MaceItem
-                || stack.getItem() instanceof ProjectileWeaponItem;
-    }
-
-    /** Броня (накладки); щит и элитры — не броня. */
-    public static boolean isArmor(ItemStack stack) {
-        return stack.getItem() instanceof ArmorItem;
+    /** Снятие запретной брони с игрока (для EQUIP); null — нечего снимать. */
+    private static Component stripWorn(ServerPlayer player, Predicate<ItemStack> filter) {
+        int removed = 0;
+        for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+            ItemStack piece = player.getItemBySlot(slot);
+            if (!piece.isEmpty() && filter.test(piece)) {
+                player.setItemSlot(slot, ItemStack.EMPTY);
+                player.drop(piece, true, false);
+                removed++;
+            }
+        }
+        return removed > 0
+                ? Component.translatable("rosminenadzor.rmn.fix_stripped", removed)
+                : null;
     }
 
     /** Дверная древесина: двери, люки, калитки (для запрета взаимодействия). */
@@ -328,37 +374,53 @@ public final class RmnBan {
 
     @SafeVarargs
     private static RmnBan tags(String id, Kind kind, String pool, TagKey<Block>... tags) {
-        return new RmnBan(id, kind, pool, Set.of(tags), Set.of(), null, null);
+        return new RmnBan(id, kind, pool, Set.of(tags), Set.of(), Set.of(), Set.of(), null, null);
     }
 
     private static RmnBan direct(String id, Kind kind, String pool, Block... blocks) {
-        return new RmnBan(id, kind, pool, Set.of(), Set.of(blocks), null, null);
+        return new RmnBan(id, kind, pool, Set.of(), Set.of(blocks), Set.of(), Set.of(), null, null);
     }
 
     @SafeVarargs
     private static RmnBan both(String id, Kind kind, String pool, TagKey<Block> tag, Block... blocks) {
-        return new RmnBan(id, kind, pool, Set.of(tag), Set.of(blocks), null, null);
+        return new RmnBan(id, kind, pool, Set.of(tag), Set.of(blocks), Set.of(), Set.of(), null, null);
     }
 
     private static RmnBan letter(String id, char... chars) {
-        return new RmnBan(id, Kind.LETTER, "WEIRD", Set.of(), Set.of(), chars, null);
+        return new RmnBan(id, Kind.LETTER, "WEIRD", Set.of(), Set.of(), Set.of(), Set.of(), chars, null);
     }
 
     private static RmnBan silly(String id) {
-        return new RmnBan(id, Kind.SILLY, "WEIRD", Set.of(), Set.of(), null, null);
+        return new RmnBan(id, Kind.SILLY, "WEIRD", Set.of(), Set.of(), Set.of(), Set.of(), null, null);
     }
 
     private static RmnBan simple(String id, Kind kind) {
-        return new RmnBan(id, kind, "PVP", Set.of(), Set.of(), null, null);
+        return new RmnBan(id, kind, "ADVANCED", Set.of(), Set.of(), Set.of(), Set.of(), null, null);
+    }
+
+    /** Запрет использования набора инструментов/оружия (ломание и атака проходят, но караются). */
+    private static RmnBan useSet(String id, String pool, Item... items) {
+        return new RmnBan(id, Kind.USE, pool, Set.of(), Set.of(), Set.of(), Set.of(items), null, null);
+    }
+
+    /** Запрет ношения набора брони (надетое снимается при обнаружении). */
+    private static RmnBan equipSet(String id, String pool, Item... items) {
+        return new RmnBan(id, Kind.EQUIP, pool, Set.of(), Set.of(), Set.of(), Set.of(items), null, null);
     }
 
     /**
      * Запрет из пользовательского {@code custom_bans.json} (конструктор запретов).
-     * Блоки/теги уже разрешены валидатором; для LETTER обязателен непустой chars.
+     * Для блоковых видов блоки/теги уже разрешены валидатором; для LETTER обязателен
+     * непустой chars; для USE/EQUIP — items/itemTags.
      */
-    public static RmnBan custom(String id, Kind kind, String pool, Set<TagKey<Block>> blockTags,
-                                Set<Block> blocks, char[] maskChars, String titleOverride) {
-        return new RmnBan(id, kind, pool, Set.copyOf(blockTags), Set.copyOf(blocks), maskChars, titleOverride);
+    public static RmnBan custom(String id, Kind kind, String pool,
+                                Set<TagKey<Block>> blockTags, Set<Block> blocks,
+                                Set<TagKey<Item>> itemTags, Set<Item> items,
+                                char[] maskChars, String titleOverride) {
+        return new RmnBan(id, kind, pool,
+                Set.copyOf(blockTags), Set.copyOf(blocks),
+                Set.copyOf(itemTags), Set.copyOf(items),
+                maskChars, titleOverride);
     }
 
     /** Свой заголовок запрета; null — у встроенных берётся перевод по ключу. */

@@ -9,6 +9,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.fml.loading.FMLPaths;
 
@@ -95,7 +96,7 @@ public final class RmnCustomBans {
         }
         Kind kind = parseKind(string(json, "kind"));
         if (kind == null) {
-            RosMineNadzor.LOGGER.warn("РМН: запрет «{}» — kind должен быть JUMP_ON/BREAK/PLACE/LETTER — пропущен", id);
+            RosMineNadzor.LOGGER.warn("РМН: запрет «{}» — kind должен быть JUMP_ON/BREAK/PLACE/USE/EQUIP/LETTER — пропущен", id);
             return null;
         }
 
@@ -119,6 +120,27 @@ public final class RmnCustomBans {
             blocks.add(block);
         }
 
+        // Наборы предметов для USE (использование) и EQUIP (ношение брони)
+        Set<TagKey<Item>> itemTags = new LinkedHashSet<>();
+        for (String tagId : stringList(json, "itemTags")) {
+            ResourceLocation rl = ResourceLocation.tryParse(tagId);
+            if (rl == null) {
+                RosMineNadzor.LOGGER.warn("РМН: «{}» — некорректный тег предметов «{}» — пропущен", id, tagId);
+                continue;
+            }
+            itemTags.add(TagKey.create(Registries.ITEM, rl));
+        }
+        Set<Item> items = new LinkedHashSet<>();
+        for (String itemId : stringList(json, "items")) {
+            ResourceLocation rl = ResourceLocation.tryParse(itemId);
+            Item item = rl == null ? null : BuiltInRegistries.ITEM.get(rl);
+            if (item == null) {
+                RosMineNadzor.LOGGER.warn("РМН: «{}» — предмет «{}» не найден в реестре — пропущен", id, itemId);
+                continue;
+            }
+            items.add(item);
+        }
+
         char[] chars = null;
         if (kind == Kind.LETTER) {
             String raw = string(json, "chars");
@@ -131,22 +153,25 @@ public final class RmnCustomBans {
                 unique.add(c);
             }
             chars = toCharArray(unique);
-        } else if (blocks.isEmpty() && tags.isEmpty()) {
-            RosMineNadzor.LOGGER.warn("РМН: запрет «{}» без blocks и tags — пропущен", id);
+        } else if (blocks.isEmpty() && tags.isEmpty()
+                && (kind != Kind.USE && kind != Kind.EQUIP || items.isEmpty() && itemTags.isEmpty())) {
+            RosMineNadzor.LOGGER.warn("РМН: запрет «{}» без запрещённых блоков/предметов — пропущен", id);
             return null;
         }
 
         String pool = parsePool(string(json, "pool"), kind);
-        return RmnBan.custom(id, kind, pool, tags, blocks, chars, string(json, "title"));
+        return RmnBan.custom(id, kind, pool, tags, blocks, itemTags, items, chars, string(json, "title"));
     }
 
-    /** Ключевое слово вида запрета (JUMP — синоним JUMP_ON). */
+    /** Ключевое слово вида запрета (JUMP — синоним JUMP_ON, PVP — старое имя ADVANCED). */
     private static Kind parseKind(String raw) {
         if (raw == null) return null;
         return switch (raw.trim().toUpperCase(Locale.ROOT)) {
             case "JUMP_ON", "JUMP" -> Kind.JUMP_ON;
             case "BREAK" -> Kind.BREAK;
             case "PLACE" -> Kind.PLACE;
+            case "USE" -> Kind.USE;
+            case "EQUIP" -> Kind.EQUIP;
             case "LETTER" -> Kind.LETTER;
             default -> null;
         };
@@ -155,7 +180,8 @@ public final class RmnCustomBans {
     private static String parsePool(String raw, Kind kind) {
         if (raw != null) {
             String upper = raw.trim().toUpperCase(Locale.ROOT);
-            if (upper.equals("MAJOR") || upper.equals("WEIRD") || upper.equals("PVP")) return upper;
+            if (upper.equals("MAJOR") || upper.equals("WEIRD") || upper.equals("ADVANCED")) return upper;
+            if (upper.equals("PVP")) return "ADVANCED"; // старое имя пула
             RosMineNadzor.LOGGER.warn("РМН: неизвестный pool «{}» — беру по умолчанию для вида", raw);
         }
         return kind == Kind.LETTER ? "WEIRD" : "MAJOR";

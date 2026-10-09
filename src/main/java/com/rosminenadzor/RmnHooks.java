@@ -14,9 +14,11 @@ import net.neoforged.neoforge.common.Tags;
 
 /**
  * Серверные хуки «РосМайнНадзора»: ломание/установка блоков, прыжок по запретной
- * поверхности, клики (лодки, лошади, двери, сон, эндер-жемчуг), PvP-экипировка
- * и запрещённые буквы в чате. «Глупые» запреты (шифт/спринт) ловит тик
- * {@link RmnOverwatch}. Нарушение = отмена действия + {@link RmnOverwatch#onViolation}.
+ * поверхности, использование запретных инструментов/оружия, клики (лодки, лошади,
+ * двери, сон, эндер-жемчуг) и запрещённые буквы в чате. «Глупые» запреты
+ * (шифт/спринт) и запрет ношения брони ловит тик {@link RmnOverwatch}.
+ * Нарушение = {@link RmnOverwatch#onViolation} (действие НЕ отменяется —
+ * надзор карает, а не блокирует).
  */
 public final class RmnHooks {
     private RmnHooks() {
@@ -24,21 +26,19 @@ public final class RmnHooks {
 
     /**
      * Запрет на ломание: блок ЛОМАЕТСЯ как обычно (дроп обычный), но нарушение
-     * фиксируется и запускает лестницу наказаний — надзор карает, а не делает
-     * игрока неуязвимым для собственных запретов.
+     * фиксируется. Отдельно — использование запретного инструмента в руке (USE).
      */
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
         if (!RmnOverwatch.isActive()) return;
         if (!(event.getPlayer() instanceof ServerPlayer player)) return;
         RmnBan ban = RmnOverwatch.stateBan(Kind.BREAK, event.getState());
-        if (ban == null) return;
-        RmnOverwatch.onViolation(player, ban);
+        if (ban != null) RmnOverwatch.onViolation(player, ban);
+        checkUse(player);
     }
 
     /**
      * Запрет на установку: блок СТАВИТСЯ как обычно, но нарушение фиксируется
-     * и запускает лестницу наказаний (на этапах 1–2 запрещённые блоки из
-     * инвентаря конфискуются). Надзор карает, а не блокирует.
+     * (на этапах 1–2 запрещённые блоки из инвентаря конфискуются).
      */
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
         if (!RmnOverwatch.isActive()) return;
@@ -66,26 +66,27 @@ public final class RmnHooks {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         ItemStack held = event.getItemStack();
         if (RmnOverwatch.banActive(RmnBan.NO_BOAT.id) && held.is(ItemTags.BOATS)) {
-            event.setCanceled(true);
             RmnOverwatch.onViolation(player, RmnBan.NO_BOAT);
             return;
         }
         if (RmnOverwatch.banActive(RmnBan.NO_BED.id) && held.is(ItemTags.BEDS)
                 && player.level().isNight()) {
-            event.setCanceled(true);
             RmnOverwatch.onViolation(player, RmnBan.NO_BED);
             return;
         }
         if (RmnOverwatch.banActive(RmnBan.NO_PEARL.id) && held.is(Items.ENDER_PEARL)) {
-            event.setCanceled(true);
             RmnOverwatch.onViolation(player, RmnBan.NO_PEARL);
             return;
         }
         if (RmnOverwatch.banActive(RmnBan.NO_DOOR.id)
                 && RmnBan.isDoorBlock(event.getLevel().getBlockState(event.getPos()))) {
-            event.setCanceled(true);
             RmnOverwatch.onViolation(player, RmnBan.NO_DOOR);
+            return;
         }
+        // Запрет взаимодействия с блоками (USEBLOCK): открытие проходит, но карается
+        RmnBan useBlock = RmnOverwatch.stateBan(Kind.USEBLOCK,
+                event.getLevel().getBlockState(event.getPos()));
+        if (useBlock != null) RmnOverwatch.onViolation(player, useBlock);
     }
 
     /** Клики «в воздух»: бросок эндер-жемчуга. */
@@ -94,7 +95,6 @@ public final class RmnHooks {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (!RmnOverwatch.banActive(RmnBan.NO_PEARL.id)) return;
         if (!event.getItemStack().is(Items.ENDER_PEARL)) return;
-        event.setCanceled(true);
         RmnOverwatch.onViolation(player, RmnBan.NO_PEARL);
     }
 
@@ -106,55 +106,24 @@ public final class RmnHooks {
         if (RmnOverwatch.banActive(RmnBan.NO_BOAT.id)
                 && (target instanceof net.minecraft.world.entity.vehicle.Boat
                     || target.getType().is(Tags.EntityTypes.BOATS))) {
-            event.setCanceled(true);
             RmnOverwatch.onViolation(player, RmnBan.NO_BOAT);
             return;
         }
         // AbstractHorse: лошади, ослы, мулы, скелетные/зомби-лошади, ламы, верблюды
         if (RmnOverwatch.banActive(RmnBan.NO_HORSE.id)
                 && target instanceof net.minecraft.world.entity.animal.horse.AbstractHorse) {
-            event.setCanceled(true);
             RmnOverwatch.onViolation(player, RmnBan.NO_HORSE);
         }
     }
 
-    /** PvP-запреты: оружие в руке атакующего и броня на жертве (по рукам атакующего). */
+    /**
+     * Удар: атака ПРОХОДИТ, но если в руке запретное оружие (USE) — нарушение.
+     * PvP-запреты удалены: боя без запретов больше не ограничиваем.
+     */
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (!RmnOverwatch.isActive()) return;
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) return;
-        if (!(event.getEntity() instanceof ServerPlayer target)) return;
-        if (attacker == target) return;
-
-        ItemStack weapon = attacker.getMainHandItem();
-        if (RmnBan.isWeapon(weapon)) {
-            if (RmnOverwatch.banActive(RmnBan.NO_WEAPON.id)) {
-                event.setCanceled(true);
-                RmnOverwatch.onViolation(attacker, RmnBan.NO_WEAPON);
-                return;
-            }
-            boolean enchanted = weapon.isEnchanted();
-            if (enchanted && RmnOverwatch.banActive(RmnBan.NO_ENCH_WEAPON.id)) {
-                event.setCanceled(true);
-                RmnOverwatch.onViolation(attacker, RmnBan.NO_ENCH_WEAPON);
-                return;
-            }
-            if (!enchanted && RmnOverwatch.banActive(RmnBan.NO_UNENCH_WEAPON.id)) {
-                event.setCanceled(true);
-                RmnOverwatch.onViolation(attacker, RmnBan.NO_UNENCH_WEAPON);
-                return;
-            }
-        }
-
-        if (!hasArmor(target)) return;
-        if (RmnOverwatch.banActive(RmnBan.NO_ENCH_ARMOR.id) && isFullyEnchantedArmor(target)) {
-            event.setCanceled(true);
-            RmnOverwatch.onViolation(attacker, RmnBan.NO_ENCH_ARMOR);
-            return;
-        }
-        if (RmnOverwatch.banActive(RmnBan.NO_UNENCH_ARMOR.id) && hasUnenchantedArmorPiece(target)) {
-            event.setCanceled(true);
-            RmnOverwatch.onViolation(attacker, RmnBan.NO_UNENCH_ARMOR);
-        }
+        checkUse(attacker);
     }
 
     /** Запрещённые буквы в чате: сообщение конфискуется, нарушение фиксируется
@@ -170,35 +139,15 @@ public final class RmnHooks {
         }
     }
 
-    /** Есть ли на игроке хоть какая-то броня. */
-    private static boolean hasArmor(ServerPlayer player) {
-        for (var slot : net.minecraft.world.entity.EquipmentSlot.values()) {
-            if (slot.getType() != net.minecraft.world.entity.EquipmentSlot.Type.HUMANOID_ARMOR) continue;
-            if (RmnBan.isArmor(player.getItemBySlot(slot))) return true;
+    /** Нарушение за использование запретного предмета в главной руке (USE). */
+    private static void checkUse(ServerPlayer player) {
+        ItemStack hand = player.getMainHandItem();
+        if (hand.isEmpty()) return;
+        for (RmnBan ban : RmnOverwatch.activeUseBans()) {
+            if (ban.matchesItem(hand)) {
+                RmnOverwatch.onViolation(player, ban);
+                return;
+            }
         }
-        return false;
-    }
-
-    /** Вся надетая броня зачарована (для запрета зачарованной). */
-    private static boolean isFullyEnchantedArmor(ServerPlayer player) {
-        boolean any = false;
-        for (var slot : net.minecraft.world.entity.EquipmentSlot.values()) {
-            if (slot.getType() != net.minecraft.world.entity.EquipmentSlot.Type.HUMANOID_ARMOR) continue;
-            ItemStack piece = player.getItemBySlot(slot);
-            if (!RmnBan.isArmor(piece)) continue;
-            any = true;
-            if (!piece.isEnchanted()) return false;
-        }
-        return any;
-    }
-
-    /** Есть ли хоть одна незачарованная часть брони (для запрета незачарованной). */
-    private static boolean hasUnenchantedArmorPiece(ServerPlayer player) {
-        for (var slot : net.minecraft.world.entity.EquipmentSlot.values()) {
-            if (slot.getType() != net.minecraft.world.entity.EquipmentSlot.Type.HUMANOID_ARMOR) continue;
-            ItemStack piece = player.getItemBySlot(slot);
-            if (RmnBan.isArmor(piece) && !piece.isEnchanted()) return true;
-        }
-        return false;
     }
 }

@@ -26,7 +26,9 @@ public final class RmnConfig {
     /** Виды запретов, участвующие в розыгрыше. */
     public static volatile boolean lettersEnabled = true;
     public static volatile boolean sillyEnabled = true;
-    public static volatile boolean pvpEnabled = true;
+    public static volatile boolean useEnabled = true;
+    public static volatile boolean equipEnabled = true;
+    public static volatile boolean useBlockEnabled = true;
     public static volatile boolean interactEnabled = true;
     /** Помилование: включённость, сколько «кнопок» возвращается и на сколько
      *  нарушений (≈20% шанса при шаге 20) снижается счётчик за чистый цикл. */
@@ -66,7 +68,9 @@ public final class RmnConfig {
             builtInEnabled = clampBool(json, "builtInEnabled", builtInEnabled);
             lettersEnabled = clampBool(json, "lettersEnabled", lettersEnabled);
             sillyEnabled = clampBool(json, "sillyEnabled", sillyEnabled);
-            pvpEnabled = clampBool(json, "pvpEnabled", pvpEnabled);
+            useEnabled = clampBool(json, "useEnabled", useEnabled);
+            equipEnabled = clampBool(json, "equipEnabled", equipEnabled);
+            useBlockEnabled = clampBool(json, "useBlockEnabled", useBlockEnabled);
             interactEnabled = clampBool(json, "interactEnabled", interactEnabled);
             clemencyEnabled = clampBool(json, "clemencyEnabled", clemencyEnabled);
             clemencyControls = clampInt(json, "clemencyControls", clemencyControls, 1, 8);
@@ -98,7 +102,9 @@ public final class RmnConfig {
             json.addProperty("builtInEnabled", builtInEnabled);
             json.addProperty("lettersEnabled", lettersEnabled);
             json.addProperty("sillyEnabled", sillyEnabled);
-            json.addProperty("pvpEnabled", pvpEnabled);
+            json.addProperty("useEnabled", useEnabled);
+            json.addProperty("equipEnabled", equipEnabled);
+            json.addProperty("useBlockEnabled", useBlockEnabled);
             json.addProperty("interactEnabled", interactEnabled);
             json.addProperty("clemencyEnabled", clemencyEnabled);
             json.addProperty("clemencyControls", clemencyControls);

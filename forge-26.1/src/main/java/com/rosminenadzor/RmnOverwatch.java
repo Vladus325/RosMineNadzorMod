@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -166,6 +167,42 @@ public final class RmnOverwatch {
             }
         }
         enforceSilly(server);
+        enforceEquip(server);
+    }
+
+    /**
+     * Периодическая проверка запретов ношения (EQUIP): запретная броня на игроке
+     * снимается (autoFix) и карается. Раз в полсекунды — достаточно быстро,
+     * чтобы поймать переодевание, и не дорого по CPU.
+     */
+    private static void enforceEquip(MinecraftServer server) {
+        if (server.getTickCount() % 10 != 0) return;
+        boolean anyEquip = false;
+        for (RmnBan ban : BANS) {
+            if (ban.kind == Kind.EQUIP) {
+                anyEquip = true;
+                break;
+            }
+        }
+        if (!anyEquip) return;
+        for (ServerLevel level : server.getAllLevels()) {
+            for (ServerPlayer player : level.players()) {
+                for (var slot : new net.minecraft.world.entity.EquipmentSlot[]{
+                        net.minecraft.world.entity.EquipmentSlot.HEAD,
+                        net.minecraft.world.entity.EquipmentSlot.CHEST,
+                        net.minecraft.world.entity.EquipmentSlot.LEGS,
+                        net.minecraft.world.entity.EquipmentSlot.FEET}) {
+                    ItemStack piece = player.getItemBySlot(slot);
+                    if (piece.isEmpty()) continue;
+                    for (RmnBan ban : BANS) {
+                        if (ban.kind == Kind.EQUIP && ban.matchesItem(piece)) {
+                            onViolation(player, ban); // autoFix снимет броню
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /** Смена цикла: помилование за чистый период + новый накопительный запрет. */
@@ -232,7 +269,9 @@ public final class RmnOverwatch {
         return switch (kind) {
             case LETTER -> RmnConfig.lettersEnabled;
             case SILLY -> RmnConfig.sillyEnabled;
-            case PVP -> RmnConfig.pvpEnabled;
+            case USE -> RmnConfig.useEnabled;
+            case EQUIP -> RmnConfig.equipEnabled;
+            case USEBLOCK -> RmnConfig.useBlockEnabled;
             case INTERACT -> RmnConfig.interactEnabled;
             default -> true;
         };
@@ -484,6 +523,15 @@ public final class RmnOverwatch {
         List<RmnBan> out = new ArrayList<>();
         for (RmnBan ban : BANS) {
             if (ban.kind == Kind.LETTER) out.add(ban);
+        }
+        return out;
+    }
+
+    /** Активные запреты использования (встроенные и кастомные) — для хуков USE. */
+    public static List<RmnBan> activeUseBans() {
+        List<RmnBan> out = new ArrayList<>();
+        for (RmnBan ban : BANS) {
+            if (ban.kind == Kind.USE) out.add(ban);
         }
         return out;
     }
