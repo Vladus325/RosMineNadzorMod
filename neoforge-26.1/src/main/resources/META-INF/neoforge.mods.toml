@@ -1,0 +1,33 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+logoFile="rosminenadzor_logo.png"
+description='''
+РМН (РосМайНадзор): глобальный надзорный орган. Каждый игровой день вступает
+новый случайный запрет — накопительно. Нарушения караются: предупреждение,
+блокировка действий управления, «суд» с шансом бана. День без нарушений —
+помилование. Запуск: команда /rmn start или Печать РосМайнНадзора (ПКМ).
+Порт на NeoForge для Minecraft 26.1.x.
+'''
+
+[[mixins]]
+config="rosminenadzor.mixins.json"
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="${neo_version}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
