@@ -9,7 +9,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -30,8 +29,8 @@ import java.util.function.Predicate;
  * (теги + прямые), набор предметов (теги + прямые), маскируемые буквы или
  * id «глупого» запрета. Запреты выбираются случайно и накапливаются с каждым
  * майнкрафт-днём — см. {@link RmnOverwatch}. Здесь же — «устранение нарушения»
- * ({@link #autoFix}): телепортация от запретной поверхности, конфискация
- * запрещённых предметов или снятие запретной брони.
+ * ({@link #autoFix}): телепортация от запретной поверхности или конфискация
+ * запрещённых предметов.
  */
 public final class RmnBan {
     /** Тип запрета — определяет, какой хук его проверяет. */
@@ -48,7 +47,7 @@ public final class RmnBan {
         SILLY,
         /** Нельзя использовать предметы из набора (ломать/атаковать) — действие проходит, но карается. */
         USE,
-        /** Нельзя надевать броню из набора — снятие при обнаружении. */
+        /** Нельзя надевать броню из набора — нарушение при обнаружении. */
         EQUIP,
         /** Нельзя взаимодействовать с блоками из набора (верстак, печь, сундук...) — открытие проходит, но карается. */
         USEBLOCK,
@@ -297,7 +296,6 @@ public final class RmnBan {
             case PLACE -> confiscate(player, stack -> matchesItem(stack)
                     || stack.getItem() instanceof BlockItem blockItem
                         && matchesState(blockItem.getBlock().defaultBlockState()));
-            case EQUIP -> stripWorn(player, this::matchesItem);
             case SILLY -> switch (id) {
                 case "no_shift_lava" -> teleportAway(player,
                         state -> state.getFluidState().is(FluidTags.LAVA));
@@ -344,23 +342,6 @@ public final class RmnBan {
         }
         return dropped > 0
                 ? Component.translatable("rosminenadzor.rmn.fix_confiscated", dropped)
-                : null;
-    }
-
-    /** Снятие запретной брони с игрока (для EQUIP); null — нечего снимать. */
-    private static Component stripWorn(ServerPlayer player, Predicate<ItemStack> filter) {
-        int removed = 0;
-        for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
-                EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-            ItemStack piece = player.getItemBySlot(slot);
-            if (!piece.isEmpty() && filter.test(piece)) {
-                player.setItemSlot(slot, ItemStack.EMPTY);
-                player.drop(piece, true, false);
-                removed++;
-            }
-        }
-        return removed > 0
-                ? Component.translatable("rosminenadzor.rmn.fix_stripped", removed)
                 : null;
     }
 

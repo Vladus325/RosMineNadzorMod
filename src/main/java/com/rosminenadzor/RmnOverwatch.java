@@ -177,8 +177,8 @@ public final class RmnOverwatch {
 
     /**
      * Периодическая проверка запретов ношения (EQUIP): запретная броня на игроке
-     * снимается (autoFix) и карается. Раз в полсекунды — достаточно быстро,
-     * чтобы поймать переодевание, и не дорого по CPU.
+     * карается. Раз в полсекунды — достаточно быстро, чтобы поймать переодевание,
+     * и не дорого по CPU.
      */
     private static void enforceEquip(MinecraftServer server) {
         if (server.getTickCount() % 10 != 0) return;
@@ -201,7 +201,7 @@ public final class RmnOverwatch {
                     if (piece.isEmpty()) continue;
                     for (RmnBan ban : BANS) {
                         if (ban.kind == Kind.EQUIP && ban.matchesItem(piece)) {
-                            onViolation(player, ban); // autoFix снимет броню
+                            onViolation(player, ban);
                             break;
                         }
                     }
