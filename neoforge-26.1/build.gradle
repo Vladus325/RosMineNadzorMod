@@ -7,7 +7,7 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = mod_id
+    archivesName = "${mod_id}-neoforge-26.1"
 }
 
 // Minecraft 26.1 ships Java 25
