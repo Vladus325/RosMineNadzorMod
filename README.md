@@ -27,7 +27,7 @@ Banned letters are erased from the entire game.
 ## Build / Сборка
 
 ```bash
-./gradlew build        # jar → build/libs/rosminenadzor-1.1.jar
+./gradlew build        # jar → build/libs/rosminenadzor-<версия>.jar
 ```
 
 Requires JDK 21. First build may need network access; afterwards `--offline` works.
