@@ -68,6 +68,7 @@ public class RosMineNadzor {
 
     /** Отправка payload'а конкретному игроку. */
     public static void sendToPlayer(ServerPlayer player, Object payload) {
+        LOGGER.info("РМН-сеть: отправляю {} -> {}", payload.getClass().getSimpleName(), player.getName().getString());
         CHANNEL.send(payload, PacketDistributor.PLAYER.with(player));
     }
 

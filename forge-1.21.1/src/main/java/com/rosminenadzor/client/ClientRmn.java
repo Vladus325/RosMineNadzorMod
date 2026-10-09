@@ -48,6 +48,8 @@ public final class ClientRmn {
      * вокруг отрисовки названия запрета буквы.
      */
     private static final ThreadLocal<Boolean> REVEAL = ThreadLocal.withInitial(() -> false);
+    /** Разовый лог первой маскировки — диагностика цензора на Forge. */
+    private static boolean maskLogged;
 
     private ClientRmn() {
     }
@@ -56,6 +58,7 @@ public final class ClientRmn {
 
     /** S2C rosminenadzor:rmn_controls — список заблокированных «кнопок» игрока. */
     public static void setControls(List<String> controls) {
+        RosMineNadzor.LOGGER.info("РМН-клиент: получены заблокированные кнопки {}", controls);
         BLOCKED_CONTROLS.clear();
         BLOCKED_CONTROLS.addAll(controls);
     }
@@ -69,6 +72,8 @@ public final class ClientRmn {
     public static void announce(String newBanId, List<RmnBanInfo> bans) {
         activeInfos = List.copyOf(bans);
         rebuildMaskedChars();
+        RosMineNadzor.LOGGER.info("РМН-цензор: получены запреты {}, маскируемых букв {}",
+                bans.stream().map(RmnBanInfo::id).toList(), maskedChars.length);
         if (newBanId == null || newBanId.isEmpty()) return;
         bannerNew = infoById(newBanId);
         bannerInfos = List.copyOf(bans);
@@ -169,6 +174,11 @@ public final class ClientRmn {
             for (char m : mask) {
                 if (chars[i] == m) {
                     chars[i] = '_';
+                    if (!maskLogged) {
+                        maskLogged = true;
+                        RosMineNadzor.LOGGER.info("РМН-цензор: маскирую текст в игре, пример «{}»",
+                                text.length() > 40 ? text.substring(0, 40) + "…" : text);
+                    }
                     break;
                 }
             }

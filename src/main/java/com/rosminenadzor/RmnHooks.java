@@ -2,6 +2,7 @@ package com.rosminenadzor;
 
 import com.rosminenadzor.RmnBan.Kind;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -69,10 +70,13 @@ public final class RmnHooks {
             RmnOverwatch.onViolation(player, RmnBan.NO_BOAT);
             return;
         }
-        if (RmnOverwatch.banActive(RmnBan.NO_BED.id) && held.is(ItemTags.BEDS)
-                && player.level().isNight()) {
-            RmnOverwatch.onViolation(player, RmnBan.NO_BED);
-            return;
+        if (RmnOverwatch.banActive(RmnBan.NO_BED.id)) {
+            // кровать — это БЛОК, по которому кликают: предмет в руке не нужен
+            if (event.getLevel().getBlockState(event.getPos()).is(BlockTags.BEDS)
+                    && player.level().isNight()) {
+                RmnOverwatch.onViolation(player, RmnBan.NO_BED);
+                return;
+            }
         }
         if (RmnOverwatch.banActive(RmnBan.NO_PEARL.id) && held.is(Items.ENDER_PEARL)) {
             RmnOverwatch.onViolation(player, RmnBan.NO_PEARL);

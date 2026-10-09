@@ -2,6 +2,7 @@ package com.rosminenadzor;
 
 import com.rosminenadzor.RmnBan.Kind;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -70,7 +71,8 @@ public final class RmnHooks {
             RmnOverwatch.onViolation(player, RmnBan.NO_BOAT);
             return;
         }
-        if (RmnOverwatch.banActive(RmnBan.NO_BED.id) && held.is(ItemTags.BEDS)
+        if (RmnOverwatch.banActive(RmnBan.NO_BED.id)
+                && event.getLevel().getBlockState(event.getPos()).is(BlockTags.BEDS)
                 && player.level().isNight()) {
             RmnOverwatch.onViolation(player, RmnBan.NO_BED);
             return;
