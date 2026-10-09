@@ -131,6 +131,24 @@ public final class ClientRmn {
     }
 
     /**
+     * Надёжное глушение приседа и прыжка на уровне ввода (mixin
+     * RmnKeyboardInputMixin, TAIL KeyboardInput.tick): keyPresses в 26.1 —
+     * immutable record, пересобираем с погашенными флагами заблокированных
+     * действий. Без блокировок возвращает то же значение.
+     */
+    public static void sanitizeKeyPresses(net.minecraft.client.player.KeyboardInput input) {
+        if (BLOCKED_CONTROLS.isEmpty()) return;
+        net.minecraft.world.entity.player.Input kp = input.keyPresses;
+        if (kp == null) return;
+        boolean sneakBlocked = BLOCKED_CONTROLS.contains("sneak") && kp.shift();
+        boolean jumpBlocked = BLOCKED_CONTROLS.contains("jump") && kp.jump();
+        if (!sneakBlocked && !jumpBlocked) return;
+        input.keyPresses = new net.minecraft.world.entity.player.Input(
+                kp.forward(), kp.backward(), kp.left(), kp.right(),
+                kp.jump() && !jumpBlocked, kp.shift() && !sneakBlocked, kp.sprint());
+    }
+
+    /**
      * Маскирует запрещённые буквы в строке разбора текста (mixin TextCensorMixin).
      * Горячий путь: без запрещённых букв возвращает ту же ссылку, без аллокаций.
      */

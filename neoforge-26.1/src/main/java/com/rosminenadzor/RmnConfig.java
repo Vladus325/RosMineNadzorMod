@@ -43,6 +43,8 @@ public final class RmnConfig {
     public static volatile int courtChanceStep = 20;
     /** Минимальная пауза между зачитанными нарушениями одного и того же запрета, сек. */
     public static volatile int violationSpacingSeconds = 2;
+    /** Одиночная игра: срок изоляции в карцере вместо бана, сек. */
+    public static volatile int jailSeconds = 60;
 
     private RmnConfig() {
     }
@@ -84,6 +86,7 @@ public final class RmnConfig {
             courtBaseChance = clampInt(json, "courtBaseChance", courtBaseChance, 0, 100);
             courtChanceStep = clampInt(json, "courtChanceStep", courtChanceStep, 0, 100);
             violationSpacingSeconds = clampInt(json, "violationSpacingSeconds", violationSpacingSeconds, 0, 300);
+            jailSeconds = clampInt(json, "jailSeconds", jailSeconds, 5, 3600);
             save(); // нормализуем файл: все ключи в актуальном виде
             RosMineNadzor.LOGGER.info("РМН: настройки загружены (интервал {}с, буквы {}, помилование {})",
                     banIntervalSeconds, lettersEnabled ? "вкл" : "выкл", clemencyEnabled ? "вкл" : "выкл");
@@ -113,6 +116,7 @@ public final class RmnConfig {
             json.addProperty("courtBaseChance", courtBaseChance);
             json.addProperty("courtChanceStep", courtChanceStep);
             json.addProperty("violationSpacingSeconds", violationSpacingSeconds);
+            json.addProperty("jailSeconds", jailSeconds);
             Files.createDirectories(file.getParent());
             Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n",
                     StandardCharsets.UTF_8);

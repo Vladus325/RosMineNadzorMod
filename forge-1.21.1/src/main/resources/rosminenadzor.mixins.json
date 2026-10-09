@@ -7,5 +7,7 @@
     "TextCensorMixin",
     "RmnKeyMappingMixin"
   ],
-  "client": []
+  "client": [
+    "RmnKeyboardInputMixin"
+  ]
 }

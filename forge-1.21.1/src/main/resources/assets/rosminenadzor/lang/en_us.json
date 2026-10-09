@@ -105,5 +105,7 @@
   "rosminenadzor.rmn.ban.no_equip_netherite_armor": "wearing netherite armor",
   "rosminenadzor.rmn.ban.no_useblock_crafting": "using crafting tables",
   "rosminenadzor.rmn.ban.no_useblock_smelting": "using furnaces",
-  "rosminenadzor.rmn.ban.no_useblock_storage": "using storage blocks (chests, barrels, hoppers)"
+  "rosminenadzor.rmn.ban.no_useblock_storage": "using storage blocks (chests, barrels, hoppers)",
+  "rosminenadzor.rmn.jail_start": "The RMN court sentenced you to isolation: %s s in solitary",
+  "rosminenadzor.rmn.jail_released": "Isolation term over. The overwatch releases you."
 }

@@ -119,6 +119,23 @@ public final class ClientRmn {
         return false;
     }
 
+    /** Заблокировано ли действие по имени (forward/back/left/right/jump/sneak/attack/use). */
+    public static boolean isControlBlocked(String control) {
+        return BLOCKED_CONTROLS.contains(control);
+    }
+
+    /**
+     * Надёжное глушение приседа и прыжка на уровне полей ввода (mixin
+     * RmnKeyboardInputMixin, TAIL KeyboardInput.tick): keyShift — ToggleKeyMapping,
+     * его isDown не всегда проходит через KeyMapping-миксин, поэтому после
+     * vanilla-расчёта ввода принудительно гасим флаги.
+     */
+    public static void sanitizeVanillaInput(net.minecraft.client.player.KeyboardInput input) {
+        if (BLOCKED_CONTROLS.isEmpty()) return;
+        if (BLOCKED_CONTROLS.contains("sneak")) input.shiftKeyDown = false;
+        if (BLOCKED_CONTROLS.contains("jump")) input.jumping = false;
+    }
+
     // ---------------------------------------------------------------- цензор букв
 
     /** Действует ли цензор: есть изгнанная буква и мы в игре. */

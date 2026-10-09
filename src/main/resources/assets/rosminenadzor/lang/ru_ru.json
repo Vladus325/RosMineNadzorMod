@@ -105,5 +105,7 @@
   "rosminenadzor.rmn.ban.no_equip_netherite_armor": "ношение незеритовой брони",
   "rosminenadzor.rmn.ban.no_useblock_crafting": "взаимодействие с верстаками",
   "rosminenadzor.rmn.ban.no_useblock_smelting": "взаимодействие с печами",
-  "rosminenadzor.rmn.ban.no_useblock_storage": "взаимодействие с хранилищами (сундуки, бочки, воронки)"
+  "rosminenadzor.rmn.ban.no_useblock_storage": "взаимодействие с хранилищами (сундуки, бочки, воронки)",
+  "rosminenadzor.rmn.jail_start": "Суд РМН приговорил вас к изоляции: %s с в карцере",
+  "rosminenadzor.rmn.jail_released": "Срок изоляции окончен. Надзор отпускает вас."
 }

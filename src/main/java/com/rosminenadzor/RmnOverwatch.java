@@ -10,6 +10,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
@@ -71,6 +72,11 @@ public final class RmnOverwatch {
     private static final Map<String, Long> LAST_VIOLATION_MS = new HashMap<>();
     /** Заблокированные «кнопки» по игрокам (до конца работы надзора). */
     private static final Map<UUID, Set<String>> BLOCKED_CONTROLS = new HashMap<>();
+    /** Уже зачитанные EQUIP-нарушения (uuid|banId): нарушение за одевание —
+     *  одноразовое; повторится только после снятия и нового надевания. */
+    private static final Map<UUID, Set<String>> EQUIP_REPORTED = new HashMap<>();
+    /** Карцер: игроки, изолированные судом в одиночной игре (бан там не работает). */
+    private static final Map<UUID, Jail> JAILED = new HashMap<>();
 
     private RmnOverwatch() {
     }
@@ -98,6 +104,7 @@ public final class RmnOverwatch {
         LAST_VIOLATION_MS.clear();
         VIOLATED_TODAY.clear();
         BLOCKED_CONTROLS.clear();
+        EQUIP_REPORTED.clear();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             pushControls(player);
             PacketDistributor.sendToPlayer(player, payloadFor(""));
@@ -173,12 +180,13 @@ public final class RmnOverwatch {
         }
         enforceSilly(server);
         enforceEquip(server);
+        tickJail(server);
     }
 
     /**
      * Периодическая проверка запретов ношения (EQUIP): запретная броня на игроке
-     * карается. Раз в полсекунды — достаточно быстро, чтобы поймать переодевание,
-     * и не дорого по CPU.
+     * карается ОДИН РАЗ за одевание — пока штаны не сняты, повторных нарушений нет.
+     * Раз в полсекунды — достаточно быстро, чтобы поймать переодевание.
      */
     private static void enforceEquip(MinecraftServer server) {
         if (server.getTickCount() % 10 != 0) return;
@@ -192,6 +200,9 @@ public final class RmnOverwatch {
         if (!anyEquip) return;
         for (ServerLevel level : server.getAllLevels()) {
             for (ServerPlayer player : level.players()) {
+                UUID uuid = player.getUUID();
+                Set<String> reported = EQUIP_REPORTED.computeIfAbsent(uuid, u -> new HashSet<>());
+                Set<String> worn = new HashSet<>();
                 for (var slot : new net.minecraft.world.entity.EquipmentSlot[]{
                         net.minecraft.world.entity.EquipmentSlot.HEAD,
                         net.minecraft.world.entity.EquipmentSlot.CHEST,
@@ -201,11 +212,15 @@ public final class RmnOverwatch {
                     if (piece.isEmpty()) continue;
                     for (RmnBan ban : BANS) {
                         if (ban.kind == Kind.EQUIP && ban.matchesItem(piece)) {
-                            onViolation(player, ban);
+                            worn.add(ban.id);
+                            if (reported.add(ban.id)) onViolation(player, ban);
                             break;
                         }
                     }
                 }
+                // снятые ранее зачитанные запреты забываем — новое надевание накажется снова
+                reported.retainAll(worn);
+                if (reported.isEmpty()) EQUIP_REPORTED.remove(uuid);
             }
         }
     }
@@ -374,14 +389,99 @@ public final class RmnOverwatch {
             player.level().playSound(null, player.blockPosition(),
                     SoundEvents.WARDEN_HEARTBEAT, SoundSource.MASTER, 1.0F, 0.6F);
             if (ThreadLocalRandom.current().nextInt(100) < chance) {
-                banPlayer(player.server, player);
-                player.server.getPlayerList().broadcastSystemMessage(Component.translatable(
-                                "rosminenadzor.rmn.ban_broadcast", player.getGameProfile().getName())
-                        .withStyle(ChatFormatting.DARK_RED), false);
+                // В одиночной игре бан не имеет смысла — суд приговаривает к карцеру
+                if (player.server.isSingleplayerOwner(player.getGameProfile())) {
+                    startJail(player);
+                } else {
+                    banPlayer(player.server, player);
+                    player.server.getPlayerList().broadcastSystemMessage(Component.translatable(
+                                    "rosminenadzor.rmn.ban_broadcast", player.getGameProfile().getName())
+                            .withStyle(ChatFormatting.DARK_RED), false);
+                }
             } else {
                 player.displayClientMessage(Component.translatable("rosminenadzor.rmn.acquitted")
                         .withStyle(ChatFormatting.GREEN), false);
             }
+        }
+    }
+
+    // ---------------------------------------------------------------- карцер (одиночная игра)
+
+    /** Суд в одиночной игре: изоляция в обсидиановом карцере на jailSeconds. */
+    private static void startJail(ServerPlayer player) {
+        ServerLevel level = player.serverLevel();
+        Vec3 cell = new Vec3(player.getX(), player.getY() + 40, player.getZ());
+        net.minecraft.core.BlockPos base = net.minecraft.core.BlockPos.containing(cell.x, cell.y, cell.z);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    boolean shell = Math.abs(dx) == 1 || Math.abs(dy) == 1 || Math.abs(dz) == 1;
+                    level.setBlock(base.offset(dx, dy, dz),
+                            shell ? net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState()
+                                    : net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                }
+            }
+        }
+        player.teleportTo(level, cell.x, cell.y, cell.z, player.getYRot(), player.getXRot());
+        int seconds = Math.max(5, Math.min(3600, RmnConfig.jailSeconds));
+        JAILED.put(player.getUUID(), new Jail(level, cell, player.position(),
+                player.getYRot(), player.getXRot(), seconds * 20));
+        player.sendSystemMessage(Component.translatable("rosminenadzor.rmn.jail_start", seconds)
+                .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
+        RosMineNadzor.LOGGER.info("РМН: {} изолирован в карцере на {}с",
+                player.getName().getString(), seconds);
+    }
+
+    private static void releaseJail(MinecraftServer server, UUID uuid, Jail jail) {
+        JAILED.remove(uuid);
+        ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+        if (player == null) return;
+        ServerLevel level = player.serverLevel();
+        player.teleportTo(level, jail.returnPos.x, jail.returnPos.y, jail.returnPos.z,
+                jail.yRot, jail.xRot);
+        player.sendSystemMessage(Component.translatable("rosminenadzor.rmn.jail_released")
+                .withStyle(ChatFormatting.GREEN));
+        player.level().playSound(null, player.blockPosition(),
+                SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 0.8F, 1.0F);
+    }
+
+    /** Тик карцера: держим игрока внутри обсидиановой камеры, по сроку отпускаем. */
+    private static void tickJail(MinecraftServer server) {
+        if (JAILED.isEmpty()) return;
+        for (var it = JAILED.entrySet().iterator(); it.hasNext(); ) {
+            var entry = it.next();
+            Jail jail = entry.getValue();
+            if (--jail.ticksLeft <= 0) {
+                it.remove();
+                releaseJail(server, entry.getKey(), jail);
+                continue;
+            }
+            ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+            if (player == null) continue;
+            if (player.distanceToSqr(jail.cell) > 2.0) {
+                player.teleportTo(jail.level, jail.cell.x, jail.cell.y, jail.cell.z,
+                        jail.yRot, jail.xRot);
+            }
+        }
+    }
+
+    /** Карцер: центр камеры, точка возврата и оставшиеся тики изоляции. */
+    private static final class Jail {
+        final ServerLevel level;
+        final net.minecraft.world.phys.Vec3 cell;
+        final net.minecraft.world.phys.Vec3 returnPos;
+        final float yRot;
+        final float xRot;
+        int ticksLeft;
+
+        Jail(ServerLevel level, net.minecraft.world.phys.Vec3 cell,
+             net.minecraft.world.phys.Vec3 returnPos, float yRot, float xRot, int ticksLeft) {
+            this.level = level;
+            this.cell = cell;
+            this.returnPos = returnPos;
+            this.yRot = yRot;
+            this.xRot = xRot;
+            this.ticksLeft = ticksLeft;
         }
     }
 
