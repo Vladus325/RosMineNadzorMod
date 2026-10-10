@@ -42,6 +42,14 @@ dependencies {
     annotationProcessor 'net.minecraftforge:eventbus-validator:7.0.5'
 }
 
+// Forge (в отличие от NeoForge) не сканирует jar на *.mixins.json —
+// конфиг миксинов обязан быть заявлен в манифесте.
+jar {
+    manifest {
+        attributes('MixinConfigs': 'rosminenadzor.mixins.json')
+    }
+}
+
 tasks.withType(ProcessResources).configureEach {
     var replaceProperties = [
             minecraft_version_range: minecraft_version_range,

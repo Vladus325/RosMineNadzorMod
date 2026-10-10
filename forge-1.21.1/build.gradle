@@ -43,6 +43,14 @@ dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
 }
 
+// Forge (в отличие от NeoForge) не сканирует jar на *.mixins.json —
+// конфиг миксинов обязан быть заявлен в манифесте.
+jar {
+    manifest {
+        attributes('MixinConfigs': 'rosminenadzor.mixins.json')
+    }
+}
+
 tasks.withType(ProcessResources).configureEach {
     var replaceProperties = [
             minecraft_version      : minecraft_version,
