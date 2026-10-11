@@ -8,6 +8,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -179,12 +180,13 @@ public final class RmnBan {
             Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.BARREL, Blocks.ENDER_CHEST,
             Blocks.HOPPER, Blocks.DISPENSER, Blocks.DROPPER);
 
-    /** Взаимодействия: проверяются клик-хуками. */
-    public static final RmnBan NO_BOAT = simple("no_boat", Kind.INTERACT);
+    /** Взаимодействия: проверяются клик-хуками. Лодке, кровати и жемчугу выданы
+     *  наборы предметов — плановый обыск инвентаря считает их контрабандой. */
+    public static final RmnBan NO_BOAT = interactItems("no_boat", Set.of(ItemTags.BOATS));
     public static final RmnBan NO_HORSE = simple("no_horse", Kind.INTERACT);
     public static final RmnBan NO_DOOR = simple("no_door", Kind.INTERACT);
-    public static final RmnBan NO_BED = simple("no_bed", Kind.INTERACT);
-    public static final RmnBan NO_PEARL = simple("no_pearl", Kind.INTERACT);
+    public static final RmnBan NO_BED = interactItems("no_bed", Set.of(ItemTags.BEDS));
+    public static final RmnBan NO_PEARL = interactItems("no_pearl", Set.of(), Items.ENDER_PEARL);
 
     /** Встроенный каталог. */
     public static final List<RmnBan> BUILT_IN = List.of(
@@ -377,6 +379,11 @@ public final class RmnBan {
 
     private static RmnBan simple(String id, Kind kind) {
         return new RmnBan(id, kind, "ADVANCED", Set.of(), Set.of(), Set.of(), Set.of(), null, null);
+    }
+
+    /** Запрет взаимодействия с предметным набором: ноша считается контрабандой при обыске. */
+    private static RmnBan interactItems(String id, Set<TagKey<Item>> itemTags, Item... items) {
+        return new RmnBan(id, Kind.INTERACT, "ADVANCED", Set.of(), Set.of(), itemTags, Set.of(items), null, null);
     }
 
     /** Запрет использования набора инструментов/оружия (ломание и атака проходят, но караются). */

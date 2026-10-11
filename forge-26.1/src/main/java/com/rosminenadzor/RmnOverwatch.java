@@ -71,6 +71,10 @@ public final class RmnOverwatch {
     private static final Map<UUID, Set<String>> EQUIP_REPORTED = new HashMap<>();
     /** Карцер: игроки, изолированные судом в одиночной игре (бан там не работает). */
     private static final Map<UUID, Jail> JAILED = new HashMap<>();
+    /** Позиции игроков для секундного замера перемещения (запрет «только приседая»). */
+    private static final Map<UUID, net.minecraft.world.phys.Vec3> LAST_POS = new HashMap<>();
+    /** Абсолютный момент следующего планового обыска инвентарей, мс; 0 — обыски выключены. */
+    private static volatile long inspectionAtMs;
 
     private RmnOverwatch() {
     }
@@ -98,9 +102,14 @@ public final class RmnOverwatch {
         LAST_VIOLATION_MS.clear();
         VIOLATED_TODAY.clear();
         BLOCKED_CONTROLS.clear();
+        EQUIP_REPORTED.clear();
+        JAILED.clear();
+        LAST_POS.clear();
+        inspectionAtMs = 0;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             pushControls(player);
             RosMineNadzor.sendToPlayer(player, payloadFor(""));
+            RosMineNadzor.sendToPlayer(player, RmnInspectionPayload.off());
             player.sendSystemMessage(Component.translatable("rosminenadzor.chat.rmn_stopped")
                     .withStyle(ChatFormatting.GREEN));
             player.level().playSound(null, player.blockPosition(),
@@ -127,6 +136,9 @@ public final class RmnOverwatch {
         RmnConfig.load();
         RmnBan.setCustom(RmnCustomBans.load()); // конструктор запретов: свежий каталог при каждом запуске
         lastCycleMs = System.currentTimeMillis();
+        LAST_POS.clear();
+        scheduleInspection();
+        pushInspectionTimer(server);
         ServerLevel overworld = server.overworld();
         lastDayTime = overworld != null ? overworld.getDefaultClockTime() : -1;
         lastCycleGameTime = overworld != null ? overworld.getOverworldClockTime() : -1;
@@ -174,6 +186,99 @@ public final class RmnOverwatch {
         enforceSilly(server);
         enforceEquip(server);
         tickJail(server);
+        tickInspection(server);
+    }
+
+    /** Плановый обыск инвентарей: контрабанда изымается, нарушения зачитываются,
+     *  клиентам уходит свежий таймер до следующего обыска. */
+    private static void tickInspection(MinecraftServer server) {
+        if (inspectionAtMs == 0 || RmnConfig.inventoryCheckSeconds <= 0) return;
+        if (System.currentTimeMillis() < inspectionAtMs) return;
+        runInspection(server);
+        scheduleInspection();
+        pushInspectionTimer(server);
+    }
+
+    /** Внеочередной обыск (/rmn inspect): изъять контрабанду сейчас, таймер заново. */
+    public static void inspectNow(MinecraftServer server) {
+        if (!active) return;
+        runInspection(server);
+        scheduleInspection();
+        pushInspectionTimer(server);
+    }
+
+    /** Назначить ближайший обыск по интервалу из config.json (0 — выключить). */
+    private static void scheduleInspection() {
+        inspectionAtMs = RmnConfig.inventoryCheckSeconds > 0
+                ? System.currentTimeMillis() + RmnConfig.inventoryCheckSeconds * 1000L
+                : 0;
+    }
+
+    private static void runInspection(MinecraftServer server) {
+        for (ServerLevel level : server.getAllLevels()) {
+            for (ServerPlayer player : level.players()) {
+                int confiscated = confiscateContraband(player);
+                if (confiscated > 0) {
+                    player.sendSystemMessage(Component.translatable(
+                            "rosminenadzor.rmn.inspection_caught", confiscated)
+                            .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
+                }
+            }
+        }
+    }
+
+    /**
+     * Изъять у игрока контрабанду: предметы активных запретов (лодки, кровати,
+     * жемчуг, наборы USE/EQUIP, блочная форма PLACE вроде ТНТ). Слоты брони не
+     * трогаем — ношение карает enforceEquip. Каждому задетому запрету — обычное
+     * нарушение (дальше работает обычная лестница).
+     */
+    private static int confiscateContraband(ServerPlayer player) {
+        var inv = player.getInventory();
+        Set<RmnBan> hit = new HashSet<>();
+        int dropped = 0;
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            // слоты 36–39 — броня: её ношение карает enforceEquip, обыск не трогает
+            if (i >= 36 && i < 40) continue;
+            ItemStack stack = inv.getItem(i);
+            if (stack.isEmpty()) continue;
+            RmnBan ban = contrabandBan(stack);
+            if (ban == null) continue;
+            hit.add(ban);
+            inv.setItem(i, ItemStack.EMPTY);
+            player.drop(stack, true, false);
+            dropped += stack.getCount();
+        }
+        for (RmnBan ban : hit) onViolation(player, ban);
+        return dropped;
+    }
+
+    /** Запрет, под который подпадает ноша: предметные наборы + блочная форма PLACE. */
+    private static RmnBan contrabandBan(ItemStack stack) {
+        for (RmnBan ban : BANS) {
+            if (ban.matchesItem(stack)) return ban;
+            if (ban.kind == Kind.PLACE
+                    && stack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem
+                    && ban.matchesState(blockItem.getBlock().defaultBlockState())) {
+                return ban;
+            }
+        }
+        return null;
+    }
+
+    /** Сколько секунд осталось до ближайшего обыска; 0 — таймер скрыт. */
+    private static int inspectionSecondsLeft() {
+        if (inspectionAtMs == 0) return 0;
+        long left = (inspectionAtMs - System.currentTimeMillis()) / 1000L;
+        return left > 0 ? (int) Math.min(left, 86_399) : 0;
+    }
+
+    /** Разослать клиентам таймер до планового обыска (0 — скрыть). */
+    private static void pushInspectionTimer(MinecraftServer server) {
+        int seconds = inspectionSecondsLeft();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            RosMineNadzor.sendToPlayer(player, new RmnInspectionPayload(seconds));
+        }
     }
 
     /** Суд в одиночной игре: изоляция в обсидиановом карцере на jailSeconds. */
@@ -564,19 +669,23 @@ public final class RmnOverwatch {
         for (ServerLevel level : server.getAllLevels()) {
             for (ServerPlayer player : level.players()) {
                 if ((tick + player.getId()) % 20 != 0) continue; // раз в секунду, рассинхронно
+                net.minecraft.world.phys.Vec3 prevPos = LAST_POS.put(player.getUUID(), player.position());
                 for (RmnBan ban : BANS) {
                     if (ban.kind != Kind.SILLY) continue;
-                    if (sillyViolated(player, ban.id)) onViolation(player, ban);
+                    if (sillyViolated(player, ban.id, prevPos)) onViolation(player, ban);
                 }
             }
         }
     }
 
-    private static boolean sillyViolated(ServerPlayer player, String id) {
+    private static boolean sillyViolated(ServerPlayer player, String id, net.minecraft.world.phys.Vec3 prevPos) {
         return switch (id) {
             case "no_shift" -> player.isShiftKeyDown();
-            // «перемещаться только приседая»: в прыжке и стоя на месте — можно
-            case "force_shift" -> !player.isShiftKeyDown() && player.onGround() && isMoving(player);
+            // «перемещаться только приседая»: считаем РЕАЛЬНОЕ перемещение за
+            // секунду (замер позиции сделан в enforceSilly). Прежняя дельта скорости
+            // срабатывала у стоящего на месте: отдача, толчки мобов, течение воды.
+            case "force_shift" -> !player.isShiftKeyDown() && player.onGround()
+                    && !player.isPassenger() && walkedFar(player, prevPos);
             case "no_sprint" -> player.isSprinting();
             case "no_shift_lava" -> player.isShiftKeyDown() && nearFluid(player, net.minecraft.tags.FluidTags.LAVA);
             case "no_shift_water" -> player.isShiftKeyDown() && nearFluid(player, net.minecraft.tags.FluidTags.WATER);
@@ -584,9 +693,14 @@ public final class RmnOverwatch {
         };
     }
 
-    private static boolean isMoving(ServerPlayer player) {
-        var d = player.getDeltaMovement();
-        return d.x * d.x + d.z * d.z > 1.0E-4;
+    /** Прошёл ли игрок за секунду больше полублока пешком. */
+    private static boolean walkedFar(ServerPlayer player, net.minecraft.world.phys.Vec3 prevPos) {
+        if (prevPos == null) return false;
+        double dx = player.getX() - prevPos.x;
+        double dz = player.getZ() - prevPos.z;
+        double distSq = dx * dx + dz * dz;
+        // >16 блоков за секунду — телепорт или лаг: не вина игрока
+        return distSq > 0.25 && distSq < 256.0;
     }
 
     /** Жидкость указанного тега у ног или под ногами. */
@@ -660,6 +774,7 @@ public final class RmnOverwatch {
     public static void onPlayerLogin(ServerPlayer player) {
         if (!active) return;
         pushControls(player);
+        RosMineNadzor.sendToPlayer(player, new RmnInspectionPayload(inspectionSecondsLeft()));
         if (!BANS.isEmpty()) {
             RosMineNadzor.sendToPlayer(player, payloadFor(""));
             player.sendSystemMessage(Component.translatable("rosminenadzor.chat.rmn_day")

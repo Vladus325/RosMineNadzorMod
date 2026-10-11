@@ -92,12 +92,22 @@ public final class RmnHooks {
         if (useBlock != null) RmnOverwatch.onViolation(player, useBlock);
     }
 
-    /** Клики «в воздух»: бросок эндер-жемчуга. */
+    /**
+     * Клики «в воздух» и ПО ЖИДКОСТИ: спуск лодки на воду и бросок эндер-жемчуга.
+     * Клик по БЛОКУ с лодкой в руке ловит onRightClickBlock, а вода мимо raytrace
+     * по блокам — срабатывает RightClickItem; без этой проверки запрет лодки
+     * не стрелял ровно в главном случае (спуск на воду).
+     */
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
         if (!RmnOverwatch.isActive()) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        ItemStack held = event.getItemStack();
+        if (RmnOverwatch.banActive(RmnBan.NO_BOAT.id) && held.is(ItemTags.BOATS)) {
+            RmnOverwatch.onViolation(player, RmnBan.NO_BOAT);
+            return;
+        }
         if (!RmnOverwatch.banActive(RmnBan.NO_PEARL.id)) return;
-        if (!event.getItemStack().is(Items.ENDER_PEARL)) return;
+        if (!held.is(Items.ENDER_PEARL)) return;
         RmnOverwatch.onViolation(player, RmnBan.NO_PEARL);
     }
 

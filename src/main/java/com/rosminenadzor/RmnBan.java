@@ -8,6 +8,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -169,12 +170,13 @@ public final class RmnBan {
     public static final RmnBan NO_EQUIP_NETHERITE_ARMOR = equipSet("no_equip_netherite_armor", "ADVANCED",
             Items.NETHERITE_HELMET, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_BOOTS);
 
-    /** Взаимодействия: проверяются клик-хуками. */
-    public static final RmnBan NO_BOAT = simple("no_boat", Kind.INTERACT);
+    /** Взаимодействия: проверяются клик-хуками. Лодке, кровати и жемчугу выданы
+     *  наборы предметов — плановый обыск инвентаря считает их контрабандой. */
+    public static final RmnBan NO_BOAT = interactItems("no_boat", Set.of(ItemTags.BOATS));
     public static final RmnBan NO_HORSE = simple("no_horse", Kind.INTERACT);
     public static final RmnBan NO_DOOR = simple("no_door", Kind.INTERACT);
-    public static final RmnBan NO_BED = simple("no_bed", Kind.INTERACT);
-    public static final RmnBan NO_PEARL = simple("no_pearl", Kind.INTERACT);
+    public static final RmnBan NO_BED = interactItems("no_bed", Set.of(ItemTags.BEDS));
+    public static final RmnBan NO_PEARL = interactItems("no_pearl", Set.of(), Items.ENDER_PEARL);
 
     /** Взаимодействие с блоками: верстаки, плавка, хранение (открытие проходит, но карается). */
     public static final RmnBan NO_USEBLOCK_CRAFTING = direct("no_useblock_crafting", Kind.USEBLOCK, "ADVANCED",
@@ -377,6 +379,11 @@ public final class RmnBan {
 
     private static RmnBan simple(String id, Kind kind) {
         return new RmnBan(id, kind, "ADVANCED", Set.of(), Set.of(), Set.of(), Set.of(), null, null);
+    }
+
+    /** Запрет взаимодействия с предметным набором: ноша считается контрабандой при обыске. */
+    private static RmnBan interactItems(String id, Set<TagKey<Item>> itemTags, Item... items) {
+        return new RmnBan(id, Kind.INTERACT, "ADVANCED", Set.of(), Set.of(), itemTags, Set.of(items), null, null);
     }
 
     /** Запрет использования набора инструментов/оружия (ломание и атака проходят, но караются). */

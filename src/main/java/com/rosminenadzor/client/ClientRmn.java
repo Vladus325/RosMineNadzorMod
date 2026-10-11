@@ -40,6 +40,8 @@ public final class ClientRmn {
     private static volatile long bannerUntil;
     private static volatile RmnBanInfo bannerNew;
     private static volatile List<RmnBanInfo> bannerInfos = List.of();
+    /** Момент планового обыска инвентаря, мс; 0 — таймер скрыт. */
+    private static volatile long inspectionAt;
 
     /**
      * Флаг «показать как есть» для утреннего баннера: цензор глушит запрещённую
@@ -84,6 +86,26 @@ public final class ClientRmn {
             if (info.id().equals(id)) return info;
         }
         return null;
+    }
+
+    /** S2C rosminenadzor:rmn_inspection — секунд до планового обыска (0 — скрыть таймер). */
+    public static void setInspection(int seconds) {
+        inspectionAt = seconds > 0 ? System.currentTimeMillis() + seconds * 1000L : 0;
+    }
+
+    /**
+     * Выход из мира: всё надзорное состояние клиента обнуляется — иначе цензор
+     * букв, блокировки «кнопок» и таймер обыска «переезжают» в главное меню
+     * и в следующий мир вместе с игроком.
+     */
+    public static void reset() {
+        BLOCKED_CONTROLS.clear();
+        activeInfos = List.of();
+        maskedChars = new char[0];
+        bannerUntil = 0;
+        bannerNew = null;
+        bannerInfos = List.of();
+        inspectionAt = 0;
     }
 
     private static void rebuildMaskedChars() {
@@ -186,6 +208,7 @@ public final class ClientRmn {
             renderBanner(guiGraphics, mc, now);
         }
         renderBlockedHud(guiGraphics, mc);
+        renderInspectionHud(guiGraphics, mc);
     }
 
     /** Утренний баннер: «РОСМАЙНАДЗОР / запретил / <запрет>» + список запретов дня.
@@ -230,6 +253,19 @@ public final class ClientRmn {
         int y = height - 22;
         guiGraphics.fill(x - 3, y - 3, x + mc.font.width(text) + 3, y + 11, 0x90000000);
         guiGraphics.drawString(mc.font, text, x, y, 0xFFFF5555, true);
+    }
+
+    /** Верхний правый угол: отсчёт до планового обыска инвентаря. */
+    private static void renderInspectionHud(GuiGraphics guiGraphics, Minecraft mc) {
+        long left = inspectionAt - System.currentTimeMillis();
+        if (left <= 0) return;
+        int total = (int) Math.min(left / 1000L, 86_399);
+        Component text = Component.translatable("rosminenadzor.rmn.inspection_hud",
+                String.format("%d:%02d", total / 60, total % 60));
+        int width = mc.font.width(text);
+        int x = mc.getWindow().getGuiScaledWidth() - width - 7;
+        guiGraphics.fill(x - 3, 3, x + width + 3, 17, 0x90000000);
+        guiGraphics.drawString(mc.font, text, x, 6, 0xFFFF5555, true);
     }
 
     /**

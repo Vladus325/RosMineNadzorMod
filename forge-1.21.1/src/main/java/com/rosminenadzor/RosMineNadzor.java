@@ -64,6 +64,12 @@ public class RosMineNadzor {
             .consumerMainThread((payload, context) ->
                     com.rosminenadzor.client.ClientRmn.announce(payload.newBanId(), payload.bans()))
             .add()
+            .messageBuilder(RmnInspectionPayload.class)
+            .direction(net.minecraft.network.protocol.PacketFlow.CLIENTBOUND)
+            .codec(RmnInspectionPayload.STREAM_CODEC)
+            .consumerMainThread((payload, context) ->
+                    com.rosminenadzor.client.ClientRmn.setInspection(payload.seconds()))
+            .add()
             .build();
 
     /** Отправка payload'а конкретному игроку. */
@@ -78,6 +84,10 @@ public class RosMineNadzor {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(RosMineNadzor::addSealToCreativeTab);
             modEventBus.addListener(RosMineNadzor::addHudLayer);
+            // Выход из мира: сброс надзорного состояния клиента (цензор букв,
+            // блокировки кнопок, таймер обыска) — иначе оно переезжает в меню.
+            MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
+                    com.rosminenadzor.client.ClientRmn.reset());
         }
 
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ServerTickEvent event) -> {

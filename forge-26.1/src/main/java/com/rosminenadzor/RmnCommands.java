@@ -34,6 +34,7 @@ public final class RmnCommands {
                     return 1;
                 }))
                 .then(Commands.literal("now").executes(RmnCommands::now))
+                .then(Commands.literal("inspect").executes(RmnCommands::inspect))
                 .then(Commands.literal("interval")
                         .then(Commands.argument("seconds", StringArgumentType.word())
                                 .suggests((ctx, builder) ->
@@ -76,6 +77,19 @@ public final class RmnCommands {
         }
         source.sendFailure(Component.translatable("rosminenadzor.cmd.now_empty"));
         return 0;
+    }
+
+    /** Внеочередной обыск инвентарей (отладка/демо): контрабанда изымается сейчас. */
+    private static int inspect(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        if (!RmnOverwatch.isActive()) {
+            source.sendFailure(Component.translatable("rosminenadzor.cmd.not_active"));
+            return 0;
+        }
+        RmnOverwatch.inspectNow(source.getServer());
+        source.sendSuccess(() -> Component.translatable("rosminenadzor.cmd.inspect_started")
+                .withStyle(ChatFormatting.RED), false);
+        return 1;
     }
 
     /**

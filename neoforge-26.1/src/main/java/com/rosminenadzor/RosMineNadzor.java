@@ -75,5 +75,9 @@ public class RosMineNadzor {
                 (payload, context) -> context.enqueueWork(() ->
                         com.rosminenadzor.client.ClientRmn.announce(payload.newBanId(), payload.bans())))
                 .optional();
+        registrar.playToClient(RmnInspectionPayload.TYPE, RmnInspectionPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        com.rosminenadzor.client.ClientRmn.setInspection(payload.seconds())))
+                .optional();
     }
 }
