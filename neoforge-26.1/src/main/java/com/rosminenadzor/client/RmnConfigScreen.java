@@ -169,7 +169,10 @@ public final class RmnConfigScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.extractBackground(guiGraphics, mouseX, mouseY, partialTick);
+        // Фон (размытый мир) извлекает сама обёртка extractRenderStateWithTooltipAndSubtitles
+        // отдельным слоем (stratum). Ручной вызов extractBackground здесь СМЕЩАЛ слои:
+        // весь наш текст оставался в заблюренном фоновом слое — «замыленный текст».
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         guiGraphics.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
         for (Object row : rows) {
             String label = I18n.get("rosminenadzor.rmn.cfg." + keyOf(row));
@@ -178,7 +181,6 @@ public final class RmnConfigScreen extends Screen {
             guiGraphics.fill(x - 3, y, x + this.width / 2 - 18, y + 18, 0x50000000);
             guiGraphics.text(this.font, Component.literal(label), x, y + 5, 0xFFCCCCCC);
         }
-        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     private static String keyOf(Object row) {

@@ -84,15 +84,10 @@ public class RosMineNadzor {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(RosMineNadzor::addSealToCreativeTab);
             modEventBus.addListener(RosMineNadzor::addHudLayer);
-            // Выход из мира: сброс надзорного состояния клиента (цензор букв,
-            // блокировки кнопок, таймер обыска) — иначе оно переезжает в меню.
-            MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
-                    com.rosminenadzor.client.ClientRmn.reset());
-            // Кнопка «Настройки» на вкладке «Моды»: фабрике передаётся родительский экран.
-            context.getContainer().registerExtensionPoint(
-                    net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
-                    () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory(
-                            (minecraft, parent) -> new com.rosminenadzor.client.RmnConfigScreen(parent)));
+            // Весь клиентский код (сброс состояния при выходе, кнопка «Настройки»
+            // на вкладке «Моды») — в client.ClientSetup: лямбда, возвращающая
+            // клиентский Screen, валит верификацию общего класса на сервере.
+            com.rosminenadzor.client.ClientSetup.init(context.getContainer());
         }
 
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ServerTickEvent event) -> {
