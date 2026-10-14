@@ -88,6 +88,11 @@ public class RosMineNadzor {
             // блокировки кнопок, таймер обыска) — иначе оно переезжает в меню.
             MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) ->
                     com.rosminenadzor.client.ClientRmn.reset());
+            // Кнопка «Настройки» на вкладке «Моды»: фабрике передаётся родительский экран.
+            context.getContainer().registerExtensionPoint(
+                    net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
+                    () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory(
+                            (minecraft, parent) -> new com.rosminenadzor.client.RmnConfigScreen(parent)));
         }
 
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ServerTickEvent event) -> {

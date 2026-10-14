@@ -207,9 +207,9 @@ public final class RmnOverwatch {
         pushInspectionTimer(server);
     }
 
-    /** Назначить ближайший обыск по интервалу из config.json (0 — выключить). */
+    /** Назначить ближайший обыск по config.json (вкл/выкл и длительность). */
     private static void scheduleInspection() {
-        inspectionAtMs = RmnConfig.inventoryCheckSeconds > 0
+        inspectionAtMs = RmnConfig.inventoryCheckEnabled && RmnConfig.inventoryCheckSeconds > 0
                 ? System.currentTimeMillis() + RmnConfig.inventoryCheckSeconds * 1000L
                 : 0;
     }

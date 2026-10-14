@@ -23,6 +23,10 @@ public class ClientInit {
         // блокировки кнопок, таймер обыска) — иначе оно переезжает в меню.
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) ->
                 ClientRmn.reset());
+        // Кнопка «Настройки» на вкладке «Моды»: фабрике передаётся родительский экран.
+        container.registerExtensionPoint(net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
+                (net.neoforged.neoforge.client.gui.IConfigScreenFactory) (modContainer, parent) ->
+                        new RmnConfigScreen(parent));
         RosMineNadzor.LOGGER.info("РосМайнНадзор: клиентская часть загружена");
     }
 

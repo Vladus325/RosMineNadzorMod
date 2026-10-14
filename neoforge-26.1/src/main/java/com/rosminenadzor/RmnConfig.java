@@ -47,6 +47,8 @@ public final class RmnConfig {
     public static volatile int jailSeconds = 60;
     /** Плановый обыск инвентарей на контрабанду каждые N секунд; 0 — выключен. */
     public static volatile int inventoryCheckSeconds = 300;
+    /** Мастер-выключатель планового обыска (вкл/выкл отдельно от длительности). */
+    public static volatile boolean inventoryCheckEnabled = true;
 
     private RmnConfig() {
     }
@@ -90,6 +92,7 @@ public final class RmnConfig {
             violationSpacingSeconds = clampInt(json, "violationSpacingSeconds", violationSpacingSeconds, 0, 300);
             jailSeconds = clampInt(json, "jailSeconds", jailSeconds, 5, 3600);
             inventoryCheckSeconds = clampInt(json, "inventoryCheckSeconds", inventoryCheckSeconds, 0, 86_400);
+            inventoryCheckEnabled = clampBool(json, "inventoryCheckEnabled", inventoryCheckEnabled);
             save(); // нормализуем файл: все ключи в актуальном виде
             RosMineNadzor.LOGGER.info("РМН: настройки загружены (интервал {}с, буквы {}, помилование {})",
                     banIntervalSeconds, lettersEnabled ? "вкл" : "выкл", clemencyEnabled ? "вкл" : "выкл");
@@ -121,6 +124,7 @@ public final class RmnConfig {
             json.addProperty("violationSpacingSeconds", violationSpacingSeconds);
             json.addProperty("jailSeconds", jailSeconds);
             json.addProperty("inventoryCheckSeconds", inventoryCheckSeconds);
+            json.addProperty("inventoryCheckEnabled", inventoryCheckEnabled);
             Files.createDirectories(file.getParent());
             Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n",
                     StandardCharsets.UTF_8);
