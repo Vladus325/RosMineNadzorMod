@@ -35,6 +35,8 @@ public final class RmnConfig {
     public static volatile boolean clemencyEnabled = true;
     public static volatile int clemencyControls = 1;
     public static volatile int clemencyMercyViolations = 1;
+    /** Помилование по СВОЕМУ таймеру каждые N секунд; 0 — на смене цикла запретов. */
+    public static volatile int clemencyIntervalSeconds = 1200;
     /** Лестница наказаний: нарушения 1..warnViolations — предупреждения,
      *  далее до controlViolations — блокировки «кнопок», дальше — «суд». */
     public static volatile int warnViolations = 2;
@@ -81,6 +83,7 @@ public final class RmnConfig {
             clemencyEnabled = clampBool(json, "clemencyEnabled", clemencyEnabled);
             clemencyControls = clampInt(json, "clemencyControls", clemencyControls, 1, 8);
             clemencyMercyViolations = clampInt(json, "clemencyMercyViolations", clemencyMercyViolations, 0, 100);
+            clemencyIntervalSeconds = clampInt(json, "clemencyIntervalSeconds", clemencyIntervalSeconds, 0, 86_400);
             warnViolations = clampInt(json, "warnViolations", warnViolations, 0, 100);
             controlViolations = clampInt(json, "controlViolations", controlViolations, 0, 200);
             if (controlViolations < warnViolations) {
@@ -118,6 +121,7 @@ public final class RmnConfig {
             json.addProperty("clemencyEnabled", clemencyEnabled);
             json.addProperty("clemencyControls", clemencyControls);
             json.addProperty("clemencyMercyViolations", clemencyMercyViolations);
+            json.addProperty("clemencyIntervalSeconds", clemencyIntervalSeconds);
             json.addProperty("warnViolations", warnViolations);
             json.addProperty("controlViolations", controlViolations);
             json.addProperty("courtBaseChance", courtBaseChance);

@@ -47,6 +47,8 @@ public final class RmnOverwatch {
     private static boolean active;
     private static int dayCount;
     private static long lastCycleMs;
+    /** Момент последнего помилования (свой таймер, не привязан к циклу запретов). */
+    private static long lastClemencyMs;
     /** dayTime на прошлом тике (для детекции wrap'а суток). */
     private static long lastDayTime = -1;
     /** gameTime на прошлом цикле: 24000 монотонных тиков = игровой день.
@@ -144,6 +146,7 @@ public final class RmnOverwatch {
         LAST_POS.clear();
         scheduleInspection();
         pushInspectionTimer(server);
+        lastClemencyMs = System.currentTimeMillis();
         ServerLevel overworld = server.overworld();
         lastDayTime = overworld != null ? overworld.getDayTime() : -1;
         lastCycleGameTime = overworld != null ? overworld.getGameTime() : -1;
@@ -187,6 +190,13 @@ public final class RmnOverwatch {
                 lastDayTime = dayTime;
                 lastCycleGameTime = gameTime;
             }
+        }
+        // Помилование: СВОЙ таймер (clemencyIntervalSeconds), независимый от
+        // цикла запретов; 0 — по-старому, на смене цикла (onCycle).
+        if (RmnConfig.clemencyIntervalSeconds > 0
+                && now - lastClemencyMs >= RmnConfig.clemencyIntervalSeconds * 1000L) {
+            lastClemencyMs = now;
+            grantClemency(server);
         }
         enforceSilly(server);
         enforceEquip(server);
@@ -409,7 +419,8 @@ public final class RmnOverwatch {
     /** Смена цикла: помилование за чистый период + новый накопительный запрет. */
     private static void onCycle(MinecraftServer server) {
         dayCount++;
-        grantClemency(server);
+        // при отдельном таймере помилования смена цикла его не трогает
+        if (RmnConfig.clemencyIntervalSeconds <= 0) grantClemency(server);
         rollNewBan(server);
     }
 

@@ -53,6 +53,7 @@
   "rosminenadzor.rmn.cfg.court_step": "Шаг шанса суда, %",
   "rosminenadzor.rmn.cfg.clemency_controls": "Помилование: кнопок",
   "rosminenadzor.rmn.cfg.clemency_mercy": "Помилование: минус нарушений",
+  "rosminenadzor.rmn.cfg.clemency_interval": "Помилование каждые, сек (0 — с циклом)",
   "rosminenadzor.rmn.cfg.spacing": "Пауза между нарушениями, сек",
   "rosminenadzor.rmn.cfg.jail": "Карцер, сек",
   "rosminenadzor.rmn.cfg.inspect_seconds": "Обыск каждые, сек",

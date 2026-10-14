@@ -53,6 +53,7 @@
   "rosminenadzor.rmn.cfg.court_step": "Court chance step, %",
   "rosminenadzor.rmn.cfg.clemency_controls": "Clemency: controls returned",
   "rosminenadzor.rmn.cfg.clemency_mercy": "Clemency: violations forgiven",
+  "rosminenadzor.rmn.cfg.clemency_interval": "Clemency every, sec (0 — with ban cycle)",
   "rosminenadzor.rmn.cfg.spacing": "Violation spacing, sec",
   "rosminenadzor.rmn.cfg.jail": "Solitary cell, sec",
   "rosminenadzor.rmn.cfg.inspect_seconds": "Inspect every, sec",

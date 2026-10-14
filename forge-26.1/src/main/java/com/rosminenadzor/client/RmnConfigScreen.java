@@ -91,6 +91,7 @@ public final class RmnConfigScreen extends Screen {
         addInt("court_step", () -> RmnConfig.courtChanceStep, v -> RmnConfig.courtChanceStep = v, 0, 100);
         addInt("clemency_controls", () -> RmnConfig.clemencyControls, v -> RmnConfig.clemencyControls = v, 1, 8);
         addInt("clemency_mercy", () -> RmnConfig.clemencyMercyViolations, v -> RmnConfig.clemencyMercyViolations = v, 0, 100);
+        addInt("clemency_interval", () -> RmnConfig.clemencyIntervalSeconds, v -> RmnConfig.clemencyIntervalSeconds = v, 0, 86_400);
         addInt("spacing", () -> RmnConfig.violationSpacingSeconds, v -> RmnConfig.violationSpacingSeconds = v, 0, 300);
         addInt("jail", () -> RmnConfig.jailSeconds, v -> RmnConfig.jailSeconds = v, 5, 3600);
         addInt("inspect_seconds", () -> RmnConfig.inventoryCheckSeconds, v -> RmnConfig.inventoryCheckSeconds = v, 0, 86_400);
