@@ -146,11 +146,6 @@ public final class ClientRmn {
         return false;
     }
 
-    /** Заблокировано ли действие по имени (forward/back/left/right/jump/sneak/attack/use). */
-    public static boolean isControlBlocked(String control) {
-        return BLOCKED_CONTROLS.contains(control);
-    }
-
     /**
      * Надёжное глушение приседа и прыжка на уровне полей ввода (mixin
      * RmnKeyboardInputMixin, TAIL KeyboardInput.tick): keyShift — ToggleKeyMapping,

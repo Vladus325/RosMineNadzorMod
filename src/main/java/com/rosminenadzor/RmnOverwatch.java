@@ -113,6 +113,11 @@ public final class RmnOverwatch {
         EQUIP_REPORTED.clear();
         LAST_POS.clear();
         inspectionAtMs = 0;
+        // выпускаем всех, кто отбывает карцер: после остановки тик карцера
+        // не работает, и игроки остались бы в обсидиановой камере навсегда
+        for (var entry : List.copyOf(JAILED.entrySet())) {
+            releaseJail(server, entry.getKey(), entry.getValue());
+        }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             pushControls(player);
             PacketDistributor.sendToPlayer(player, payloadFor(""));
@@ -523,7 +528,9 @@ public final class RmnOverwatch {
     /** Суд в одиночной игре: изоляция в обсидиановом карцере на jailSeconds. */
     private static void startJail(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        Vec3 cell = new Vec3(player.getX(), player.getY() + 40, player.getZ());
+        // кламп к потолку мира: у верхней кромки setBlock верхней оболочки молча провалится
+        Vec3 cell = new Vec3(player.getX(),
+                Math.min(player.getY() + 40, level.getMaxBuildHeight() - 5), player.getZ());
         net.minecraft.core.BlockPos base = net.minecraft.core.BlockPos.containing(cell.x, cell.y, cell.z);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
@@ -615,10 +622,13 @@ public final class RmnOverwatch {
      * clemencyEnabled; работает и для офлайн-игроков.
      */
     private static void grantClemency(MinecraftServer server) {
+        // гейт «чистого окна»: нарушившие с прошлого помилования смягчения не получают
+        Set<UUID> violated = new HashSet<>(VIOLATED_TODAY);
         VIOLATED_TODAY.clear();
         if (!RmnConfig.clemencyEnabled) return;
         Set<UUID> tracked = new HashSet<>(VIOLATIONS.keySet());
         tracked.addAll(BLOCKED_CONTROLS.keySet());
+        tracked.removeAll(violated);
         for (UUID uuid : tracked) {
             boolean reduced = false;
             int count = VIOLATIONS.getOrDefault(uuid, 0);

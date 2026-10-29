@@ -7,8 +7,10 @@ import net.minecraft.util.GsonHelper;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Настройки надзора: {@code config/rosminenadzor/config.json} (создаётся со
@@ -102,6 +104,14 @@ public final class RmnConfig {
                     banIntervalSeconds, lettersEnabled ? "вкл" : "выкл", clemencyEnabled ? "вкл" : "выкл");
         } catch (Exception e) {
             RosMineNadzor.LOGGER.error("РМН: не удалось прочитать config.json — использую значения по умолчанию", e);
+            // самолечение: битый файл убираем в .broken, чтобы save() записал дефолтный
+            try {
+                Files.move(file, file.resolveSibling("config.json.broken"),
+                        StandardCopyOption.REPLACE_EXISTING);
+                save();
+            } catch (Exception ignored) {
+                // не смогли — останется битый файл, дефолты и так применены
+            }
         }
     }
 
@@ -131,8 +141,15 @@ public final class RmnConfig {
             json.addProperty("inventoryCheckSeconds", inventoryCheckSeconds);
             json.addProperty("inventoryCheckEnabled", inventoryCheckEnabled);
             Files.createDirectories(file.getParent());
-            Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n",
+            // атомарная запись: crash посреди записи не должен оставлять битый config.json
+            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+            Files.writeString(tmp, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n",
                     StandardCharsets.UTF_8);
+            try {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             RosMineNadzor.LOGGER.error("РМН: не удалось сохранить config.json", e);
         }

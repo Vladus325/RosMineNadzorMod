@@ -418,6 +418,21 @@ public final class RmnBan {
         return titleOverride;
     }
 
+    /**
+     * Запреты сравниваются по id: после {@code /rmn reload} свежие инстансы
+     * custom_bans.json должны распознаваться в списке активных запретов —
+     * иначе {@code unbanned()} не увидит старый инстанс и rollNewBan введёт дубль.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof RmnBan other && other.id.equals(id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     /** Список запретов, которых ещё нет среди активных (встроенные + кастомные). */
     public static List<RmnBan> unbanned(List<RmnBan> active) {
         List<RmnBan> out = new ArrayList<>(all());

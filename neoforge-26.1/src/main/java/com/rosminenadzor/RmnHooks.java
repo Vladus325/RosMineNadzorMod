@@ -10,8 +10,8 @@ import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 /**
  * Серверные хуки «РосМайнНадзора» (NeoForge 26.1): ломание/установка блоков,
@@ -27,12 +27,14 @@ public final class RmnHooks {
 
     /**
      * Запрет на ломание: 26.1 убрал BreakEvent — нарушение фиксируется по
-     * BlockDropsEvent (дроп уже заспавнился, блок ЛОМАЕТСЯ как обычно). Отдельно —
+     * BreakBlockEvent (наследник его семантики: стреляет на попытке сломать при
+     * ЛЮБОМ режиме игры, включая креатив, где BlockDropsEvent мог не дойти без
+     * дропа). Событие клиент-серверное — фильтр по ServerPlayer. Отдельно —
      * использование запретного инструмента в руке (USE).
      */
-    public static void onBlockBreak(BlockDropsEvent event) {
+    public static void onBlockBreak(BreakBlockEvent event) {
         if (!RmnOverwatch.isActive()) return;
-        if (!(event.getBreaker() instanceof ServerPlayer player)) return;
+        if (!(event.getPlayer() instanceof ServerPlayer player)) return;
         RmnBan ban = RmnOverwatch.stateBan(Kind.BREAK, event.getState());
         if (ban != null) RmnOverwatch.onViolation(player, ban);
         checkUse(player);

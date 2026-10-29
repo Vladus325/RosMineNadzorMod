@@ -33,7 +33,8 @@ public record RmnControlsPayload(List<String> controls) implements CustomPacketP
     }
 
     private static List<String> readControls(FriendlyByteBuf buf) {
-        int size = buf.readVarInt();
+        // кап против безлимитного цикла декода (S2C со своего сервера, но дёшево)
+        int size = Math.min(buf.readVarInt(), 64);
         List<String> out = new ArrayList<>(Math.min(size, 16));
         for (int i = 0; i < size; i++) {
             out.add(buf.readUtf(32));
