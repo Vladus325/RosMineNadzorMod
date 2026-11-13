@@ -44,8 +44,8 @@ public final class ClientRmn {
     private static volatile List<RmnBanInfo> bannerInfos = List.of();
     /** Момент планового обыска инвентаря, мс; 0 — таймер скрыт. */
     private static volatile long inspectionAt;
-    /** Разовый лог первого вызова HUD-колбэка (диагностика Forge 26.1). */
-    private static boolean hudLogged;
+    /** Счётчик вызовов HUD-колбэка (периодическая диагностика Forge 26.1). */
+    private static long hudTicks;
 
     /**
      * Флаг «показать как есть» для утреннего баннера: цензор глушит запрещённую
@@ -213,14 +213,16 @@ public final class ClientRmn {
     public static void render(GuiGraphicsExtractor guiGraphics) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.options == null) return;
-        // диагностика: доказать, что колбэк Gui.extractRenderState реально зовётся
-        if (!hudLogged) {
-            hudLogged = true;
+        hudTicks++;
+        // периодическая диагностика HUD-колбэка (паритет с forge-26.1)
+        if (hudTicks % 200 == 1) {
             com.rosminenadzor.RosMineNadzor.LOGGER.info(
-                    "RMN-HUD: колбэк отрисовки активен (баннер {} мс, обыск через {} с, блокировки {})",
+                    "RMN-HUD: вызов #{}, баннер {} мс, обыск через {} с, блокировки {}, scissor(10,10)={}",
+                    hudTicks,
                     Math.max(0, bannerUntil - System.currentTimeMillis()),
                     Math.max(0, (inspectionAt - System.currentTimeMillis()) / 1000),
-                    BLOCKED_CONTROLS);
+                    BLOCKED_CONTROLS,
+                    guiGraphics.containsPointInScissor(10, 10));
         }
         long now = System.currentTimeMillis();
         if (now < bannerUntil) {
