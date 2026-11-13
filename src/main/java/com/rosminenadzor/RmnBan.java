@@ -120,6 +120,10 @@ public final class RmnBan {
             Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.BARREL);
     public static final RmnBan NO_PLACE_TORCH = direct("no_place_torch", Kind.PLACE, "MAJOR",
             Blocks.TORCH, Blocks.WALL_TORCH, Blocks.SOUL_TORCH, Blocks.SOUL_WALL_TORCH,
+            Blocks.REDSTONE_TORCH, Blocks.REDSTONE_WALL_TORCH,
+            Blocks.GLOWSTONE, Blocks.SEA_LANTERN, Blocks.SHROOMLIGHT, Blocks.JACK_O_LANTERN,
+            Blocks.END_ROD, Blocks.OCHRE_FROGLIGHT, Blocks.VERDANT_FROGLIGHT, Blocks.PEARLESCENT_FROGLIGHT,
+            Blocks.CRYING_OBSIDIAN, Blocks.COPPER_BULB,
             Blocks.LANTERN, Blocks.SOUL_LANTERN);
     public static final RmnBan NO_PLACE_FLOWERS = tags("no_place_flowers", Kind.PLACE, "MAJOR", BlockTags.FLOWERS);
 

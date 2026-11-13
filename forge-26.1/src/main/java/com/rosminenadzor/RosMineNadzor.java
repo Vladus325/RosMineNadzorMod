@@ -1,7 +1,9 @@
 package com.rosminenadzor;
 
 import com.mojang.logging.LogUtils;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -44,7 +46,11 @@ public class RosMineNadzor {
     /** Печать РосМайнНадзора: ПКМ — запуск/остановка надзора. */
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
     public static final RegistryObject<RmnSealItem> RMN_SEAL = ITEMS.register("rmn_seal",
-            () -> new RmnSealItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+            // 26.1: Item-конструктор требует id в Properties («Item id not set») —
+            // DeferredRegister через supplier его не проставляет, пишем сами
+            () -> new RmnSealItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)
+                    .setId(ResourceKey.create(Registries.ITEM,
+                            Identifier.fromNamespaceAndPath(MODID, "rmn_seal")))));
 
     /** Сеть: оба payload'а едут на клиент (CLIENTBOUND), обработка — на главном потоке. */
     private static final SimpleChannel CHANNEL = ChannelBuilder

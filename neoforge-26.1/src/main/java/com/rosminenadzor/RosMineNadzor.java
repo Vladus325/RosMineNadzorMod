@@ -1,6 +1,8 @@
 package com.rosminenadzor;
 
 import com.mojang.logging.LogUtils;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -34,8 +36,11 @@ public class RosMineNadzor {
 
     /** Печать РосМайнНадзора: ПКМ — запуск/остановка надзора. */
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
-    public static final DeferredItem<RmnSealItem> RMN_SEAL = ITEMS.register("rmn_seal",
-            () -> new RmnSealItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+    public static final DeferredItem<RmnSealItem> RMN_SEAL = ITEMS.register("rmn_seal", id ->
+            // 26.1: Item-конструктор требует id в Properties («Item id not set»);
+            // Function-вариант register сам передаёт ключ регистрации
+            new RmnSealItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)
+                    .setId(ResourceKey.create(Registries.ITEM, id))));
 
     public RosMineNadzor(IEventBus modEventBus, ModContainer container) {
         ITEMS.register(modEventBus);
