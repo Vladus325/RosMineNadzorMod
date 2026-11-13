@@ -44,6 +44,8 @@ public final class ClientRmn {
     private static volatile List<RmnBanInfo> bannerInfos = List.of();
     /** Момент планового обыска инвентаря, мс; 0 — таймер скрыт. */
     private static volatile long inspectionAt;
+    /** Разовый лог первого вызова HUD-колбэка (диагностика Forge 26.1). */
+    private static boolean hudLogged;
 
     /**
      * Флаг «показать как есть» для утреннего баннера: цензор глушит запрещённую
@@ -211,6 +213,15 @@ public final class ClientRmn {
     public static void render(GuiGraphicsExtractor guiGraphics) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.options == null) return;
+        // диагностика: доказать, что колбэк Gui.extractRenderState реально зовётся
+        if (!hudLogged) {
+            hudLogged = true;
+            com.rosminenadzor.RosMineNadzor.LOGGER.info(
+                    "RMN-HUD: колбэк отрисовки активен (баннер {} мс, обыск через {} с, блокировки {})",
+                    Math.max(0, bannerUntil - System.currentTimeMillis()),
+                    Math.max(0, (inspectionAt - System.currentTimeMillis()) / 1000),
+                    BLOCKED_CONTROLS);
+        }
         long now = System.currentTimeMillis();
         if (now < bannerUntil) {
             renderBanner(guiGraphics, mc, now);
@@ -233,19 +244,19 @@ public final class ClientRmn {
 
         guiGraphics.centeredText(mc.font, Component.translatable("rosminenadzor.rmn.banner_title")
                         .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD),
-                width / 2, y + 8, 0xFF5555);
+                width / 2, y + 8, 0xFFFF5555);
         guiGraphics.centeredText(mc.font, Component.translatable("rosminenadzor.rmn.banner_banned")
                         .withStyle(ChatFormatting.WHITE),
-                width / 2, y + 20, 0xFFFFFF);
+                width / 2, y + 20, 0xFFFFFFFF);
         boolean reveal = bannerNew != null && "LETTER".equals(bannerNew.kind());
         String title = bannerTitle(bannerNew);
         if (reveal) REVEAL.set(true);
-        guiGraphics.centeredText(mc.font, Component.literal(title), width / 2, y + 32, 0xFFAA00);
+        guiGraphics.centeredText(mc.font, Component.literal(title), width / 2, y + 32, 0xFFFFAA00);
         if (reveal) REVEAL.set(false);
         if (bannerInfos.size() > 1) {
             guiGraphics.centeredText(mc.font,
                     Component.translatable("rosminenadzor.rmn.banner_day", joinTitles(bannerInfos)),
-                    width / 2, y + 48, 0xAAAAAA);
+                    width / 2, y + 48, 0xFFAAAAAA);
         }
     }
 

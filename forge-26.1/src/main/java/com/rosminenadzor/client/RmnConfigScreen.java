@@ -174,7 +174,7 @@ public final class RmnConfigScreen extends Screen {
         // отдельным слоем (stratum). Ручной вызов extractBackground здесь СМЕЩАЛ слои:
         // весь наш текст оставался в заблюренном фоновом слое — «замыленный текст».
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
-        guiGraphics.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
+        guiGraphics.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFFFF);
         for (Object row : rows) {
             String label = I18n.get("rosminenadzor.rmn.cfg." + keyOf(row));
             int x = xOf(row);
