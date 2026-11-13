@@ -129,6 +129,35 @@ public final class RmnOverwatch {
         RosMineNadzor.LOGGER.info("РМН: надзор остановлен");
     }
 
+    /**
+     * Сервер останавливается (выход из мира в одиночке / остановка выделенного):
+     * надзор живёт в статике процесса — без сброса он «переезжал» в следующий
+     * мир того же клиента со всеми запретами и блокировками. Заключённых
+     * выпускаем до очистки; пакеты не шлём — клиенты отключаются, своё
+     * состояние клиент чистит по LoggingOut.
+     */
+    public static void onServerStopping(MinecraftServer server) {
+        if (!active) return;
+        for (var entry : List.copyOf(JAILED.entrySet())) {
+            releaseJail(server, entry.getKey(), entry.getValue());
+        }
+        active = false;
+        BANS.clear();
+        VIOLATIONS.clear();
+        LAST_VIOLATION_MS.clear();
+        VIOLATED_TODAY.clear();
+        BLOCKED_CONTROLS.clear();
+        EQUIP_REPORTED.clear();
+        JAILED.clear();
+        LAST_POS.clear();
+        inspectionAtMs = 0;
+        lastDayTime = -1;
+        lastCycleGameTime = -1;
+        lastClemencyMs = 0;
+        dayCount = 0;
+        RosMineNadzor.LOGGER.info("РМН: сервер останавливается — надзор прекращён, состояние сброшено");
+    }
+
     /** Запуск: надзор активируется и со следующего дня начинает вводить запреты. */
     public static void start(MinecraftServer server, ServerPlayer anchor, boolean allPlayers) {
         if (active) {
@@ -303,19 +332,24 @@ public final class RmnOverwatch {
     private static void startJail(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
         // кламп к потолку мира: у верхней кромки setBlock верхней оболочки молча провалится
-        net.minecraft.world.phys.Vec3 cell = new net.minecraft.world.phys.Vec3(
-                player.getX(), Math.min(player.getY() + 40, level.getMaxBuildHeight() - 5), player.getZ());
-        net.minecraft.core.BlockPos base = net.minecraft.core.BlockPos.containing(cell.x, cell.y, cell.z);
+        double cellY = Math.min(player.getY() + 40, level.getMaxBuildHeight() - 5);
+        net.minecraft.core.BlockPos base = net.minecraft.core.BlockPos.containing(
+                player.getX(), cellY, player.getZ());
+        // интерьер 1×2×1 (пол −1, потолок +2, стены по бокам): прежняя камера была
+        // внутри ровно 1×1×1 — голова игрока (рост 1.8) уходила в обсидиан, и
+        // заключённый умирал от удушья
         for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
+            for (int dy = -1; dy <= 2; dy++) {
                 for (int dz = -1; dz <= 1; dz++) {
-                    boolean shell = Math.abs(dx) == 1 || Math.abs(dy) == 1 || Math.abs(dz) == 1;
+                    boolean shell = Math.abs(dx) == 1 || Math.abs(dz) == 1 || dy == -1 || dy == 2;
                     level.setBlock(base.offset(dx, dy, dz),
                             shell ? net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState()
                                     : net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
                 }
             }
         }
+        net.minecraft.world.phys.Vec3 cell = new net.minecraft.world.phys.Vec3(
+                base.getX() + 0.5, base.getY(), base.getZ() + 0.5);
         player.teleportTo(level, cell.x, cell.y, cell.z, player.getYRot(), player.getXRot());
         int seconds = Math.max(5, Math.min(3600, RmnConfig.jailSeconds));
         JAILED.put(player.getUUID(), new Jail(level, cell, player.position(),

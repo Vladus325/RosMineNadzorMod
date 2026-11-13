@@ -47,6 +47,8 @@ public class RosMineNadzor {
         modEventBus.addListener(this::registerPayloads);
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) ->
                 RmnOverwatch.tick(event.getServer()));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppingEvent event) ->
+                RmnOverwatch.onServerStopping(event.getServer()));
         NeoForge.EVENT_BUS.addListener(RmnHooks::onBlockBreak);
         NeoForge.EVENT_BUS.addListener(RmnHooks::onBlockPlace);
         NeoForge.EVENT_BUS.addListener(RmnHooks::onJump);

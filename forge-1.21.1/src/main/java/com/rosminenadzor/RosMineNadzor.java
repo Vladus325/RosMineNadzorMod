@@ -95,6 +95,8 @@ public class RosMineNadzor {
                 RmnOverwatch.tick(event.getServer());
             }
         });
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.server.ServerStoppingEvent event) ->
+                RmnOverwatch.onServerStopping(event.getServer()));
         MinecraftForge.EVENT_BUS.addListener(RmnHooks::onBlockBreak);
         MinecraftForge.EVENT_BUS.addListener(RmnHooks::onBlockPlace);
         MinecraftForge.EVENT_BUS.addListener(RmnHooks::onJump);
