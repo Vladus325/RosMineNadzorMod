@@ -1,13 +1,11 @@
 package com.rosminenadzor.client;
 
 import com.rosminenadzor.RosMineNadzor;
-import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
@@ -18,7 +16,7 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 @Mod(value = RosMineNadzor.MODID, dist = Dist.CLIENT)
 public class ClientInit {
     public ClientInit(IEventBus modEventBus, ModContainer container) {
-        modEventBus.addListener(ClientInit::registerGuiLayers);
+        // HUD рисует RmnGuiMixin (RegisterGuiLayersEvent в 26.1 не отрисовывался).
         // Выход из мира: сброс надзорного состояния клиента (цензор букв,
         // блокировки кнопок, таймер обыска) — иначе оно переезжает в меню.
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) ->
@@ -28,11 +26,5 @@ public class ClientInit {
                 (net.neoforged.neoforge.client.gui.IConfigScreenFactory) (modContainer, parent) ->
                         new RmnConfigScreen(parent));
         RosMineNadzor.LOGGER.info("РосМайнНадзор: клиентская часть загружена");
-    }
-
-    private static void registerGuiLayers(RegisterGuiLayersEvent event) {
-        event.registerAboveAll(
-                Identifier.fromNamespaceAndPath(RosMineNadzor.MODID, "rmn_overlay"),
-                (guiGraphics, deltaTracker) -> ClientRmn.render(guiGraphics));
     }
 }

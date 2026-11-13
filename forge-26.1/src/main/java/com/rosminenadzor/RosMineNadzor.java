@@ -87,10 +87,10 @@ public class RosMineNadzor {
         ITEMS.register(modBusGroup);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             BuildCreativeModeTabContentsEvent.BUS.addListener(RosMineNadzor::addSealToCreativeTab);
-            net.minecraftforge.client.event.AddGuiOverlayLayersEvent.BUS.addListener(RosMineNadzor::addHudLayer);
             // Весь клиентский код (сброс состояния при выходе, кнопка «Настройки»
             // на вкладке «Моды») — в client.ClientSetup: лямбда, возвращающая
             // клиентский Screen, валит верификацию общего класса на сервере.
+            // HUD рисует RmnGuiMixin (слой лоадера в 26.1 не отрисовывался).
             com.rosminenadzor.client.ClientSetup.init(context.getContainer());
         }
 
@@ -117,12 +117,5 @@ public class RosMineNadzor {
             event.accept(new ItemStack(RMN_SEAL.get()),
                     net.minecraft.world.item.CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS);
         }
-    }
-
-    /** Слой HUD-баннера и блокировок: поверх ванильных оверлеев. */
-    private static void addHudLayer(net.minecraftforge.client.event.AddGuiOverlayLayersEvent event) {
-        event.getLayeredDraw().add(
-                Identifier.fromNamespaceAndPath(MODID, "rmn_overlay"),
-                (guiGraphics, deltaTracker) -> com.rosminenadzor.client.ClientRmn.render(guiGraphics));
     }
 }

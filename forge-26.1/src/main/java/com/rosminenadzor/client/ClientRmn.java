@@ -143,6 +143,11 @@ public final class ClientRmn {
         return false;
     }
 
+    /** Заблокировано ли действие по имени (forward/back/left/right/jump/sneak/attack/use). */
+    public static boolean isControlBlocked(String control) {
+        return BLOCKED_CONTROLS.contains(control);
+    }
+
     // ---------------------------------------------------------------- цензор букв
 
     /** Действует ли цензор: есть изгнанная буква и мы в игре. */

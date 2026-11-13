@@ -8,6 +8,8 @@
     "RmnKeyMappingMixin"
   ],
   "client": [
-    "RmnKeyboardInputMixin"
+    "RmnKeyboardInputMixin",
+    "RmnGameModeMixin",
+    "RmnGuiMixin"
   ]
 }
