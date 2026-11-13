@@ -62,6 +62,7 @@ public final class ClientRmn {
 
     /** S2C rosminenadzor:rmn_controls — список заблокированных «кнопок» игрока. */
     public static void setControls(List<String> controls) {
+        com.rosminenadzor.RosMineNadzor.LOGGER.info("РМН-клиент: получены заблокированные кнопки {}", controls);
         BLOCKED_CONTROLS.clear();
         BLOCKED_CONTROLS.addAll(controls);
     }
@@ -75,6 +76,8 @@ public final class ClientRmn {
     public static void announce(String newBanId, List<RmnBanInfo> bans) {
         activeInfos = List.copyOf(bans);
         rebuildMaskedChars();
+        com.rosminenadzor.RosMineNadzor.LOGGER.info("РМН-цензор: получены запреты {}, баннер «{}», маскируемых букв {}",
+                bans.stream().map(RmnBanInfo::id).toList(), newBanId, maskedChars.length);
         if (newBanId == null || newBanId.isEmpty()) return;
         bannerNew = infoById(newBanId);
         bannerInfos = List.copyOf(bans);
@@ -94,6 +97,7 @@ public final class ClientRmn {
 
     /** S2C rosminenadzor:rmn_inspection — секунд до планового обыска (0 — скрыть таймер). */
     public static void setInspection(int seconds) {
+        com.rosminenadzor.RosMineNadzor.LOGGER.info("RMN-клиент: таймер обыска = {} с", seconds);
         inspectionAt = seconds > 0 ? System.currentTimeMillis() + seconds * 1000L : 0;
     }
 
