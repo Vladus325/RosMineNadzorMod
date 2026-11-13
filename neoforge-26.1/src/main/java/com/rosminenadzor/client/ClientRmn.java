@@ -214,8 +214,9 @@ public final class ClientRmn {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.options == null) return;
         hudTicks++;
-        // периодическая диагностика HUD-колбэка (паритет с forge-26.1)
-        if (hudTicks % 200 == 1) {
+        // периодическая диагностика HUD-колбэка (паритет с forge-26.1);
+        // плотность: первые 5 вызовов подряд, затем каждые 50-й
+        if (hudTicks <= 5 || hudTicks % 50 == 0) {
             com.rosminenadzor.RosMineNadzor.LOGGER.info(
                     "RMN-HUD: вызов #{}, баннер {} мс, обыск через {} с, блокировки {}, scissor(10,10)={}",
                     hudTicks,
