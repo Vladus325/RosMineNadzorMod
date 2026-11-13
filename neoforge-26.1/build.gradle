@@ -33,6 +33,14 @@ neoForge {
     }
 }
 
+// FML 26.1 не сканирует jar на *.mixins.json (в отличие от FML 21.1) —
+// конфиг миксинов обязан быть заявлен в манифесте.
+jar {
+    manifest {
+        attributes('MixinConfigs': 'rosminenadzor.mixins.json')
+    }
+}
+
 tasks.withType(ProcessResources).configureEach {
     var replaceProperties = [
             minecraft_version_range: minecraft_version_range,
